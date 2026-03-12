@@ -1,0 +1,74 @@
+cmake_minimum_required(VERSION 3.18)
+
+project(celeritas_pool_tests LANGUAGES CXX)
+enable_language(CUDA)
+
+# Single-config generators (Ninja/Makefiles): default to Debug if not set.
+if (NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type (Debug or Release)" FORCE)
+endif()
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+find_package(GTest REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../baseutil
+                 ${CMAKE_BINARY_DIR}/baseutil)
+
+add_library(celeritas_kernels STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../celeritas/operation/kernels/gpu/add.cu
+)
+target_include_directories(celeritas_kernels
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+target_link_libraries(celeritas_kernels
+  PUBLIC
+    CUDA::cudart
+)
+set_target_properties(celeritas_kernels PROPERTIES
+  CUDA_STANDARD 17
+  CUDA_STANDARD_REQUIRED ON
+)
+
+# Debug flags for cuda-gdb:
+# -G: generate device debug info (disables most optimizations for device code)
+# -g: host debug symbols
+# -lineinfo: richer source/line mapping in device code
+target_compile_options(celeritas_kernels
+  PRIVATE
+    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-g;-O0;-lineinfo>
+    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>
+)
+
+add_executable(test_pool
+  testMain.cpp
+  testUtil/testPool.cpp
+  testOperation/testAdd.cpp
+)
+
+target_link_libraries(test_pool
+  PRIVATE
+    baseutil_memory
+    celeritas_kernels
+    GTest::gtest
+)
+
+target_compile_options(test_pool
+  PRIVATE
+    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>
+)
+
+target_include_directories(test_pool
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+enable_testing()
+add_test(NAME pool_tests COMMAND celeritas_gtest)
