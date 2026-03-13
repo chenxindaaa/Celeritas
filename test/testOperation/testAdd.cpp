@@ -4,11 +4,11 @@
 #include <cuda_runtime_api.h>
 
 #include "baseutil/tensor/tensor.h"
-#include "celeritas/operation/kernels/gpu/add.cuh"
+#include "celeritas/kernels/gpu/add.cuh"
 
 TEST(test_add, gpu_add) {
-    using baseutil::tensor::DeviceType;
-    using baseutil::tensor::Tensor;
+    using eUTIL::DeviceType;
+    using eUTIL::Tensor;
 
     constexpr std::size_t kCount = 25;
 
@@ -29,7 +29,7 @@ TEST(test_add, gpu_add) {
     cpu_b.cuda();
     Tensor<int> gpu_o(kCount, DeviceType::kCuda);
 
-    kernel::add_kernel_cu(cpu_a, cpu_b, gpu_o);
+    eCEL::add_kernel_cu(cpu_a, cpu_b, gpu_o);
     ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
 
     gpu_o.cpu();

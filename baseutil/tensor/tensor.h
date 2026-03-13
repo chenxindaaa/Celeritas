@@ -5,19 +5,13 @@
 
 #include "../memory/Pool.h"
 
-namespace baseutil {
-namespace tensor {
-
-enum class DeviceType {
-    kCpu = 0,
-    kCuda = 1,
-};
+namespace eUTIL {
 
 template <typename T>
 class Tensor {
    public:
-    static_assert(memory::PoolTraits<T>::kSupported,
-                  "Tensor currently supports int/float/double only");
+    static_assert(PoolTraits<T>::kSupported,
+                  "Unsupported type");
 
     Tensor(std::size_t size, DeviceType device);
     ~Tensor() noexcept;
@@ -51,5 +45,4 @@ extern template class Tensor<int>;
 extern template class Tensor<float>;
 extern template class Tensor<double>;
 
-}  // namespace tensor
-}  // namespace baseutil
+}  // namespace eUTIL

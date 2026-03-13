@@ -1,5 +1,4 @@
-#ifndef __SINGLETON_H__
-#define __SINGLETON_H__
+#pragma once
 
 template<typename T>
 class Singleton {
@@ -15,5 +14,3 @@ public:
 protected:
     Singleton() = default;
 };
-
-#endif //__UTILS_HPP__//

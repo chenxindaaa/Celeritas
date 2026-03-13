@@ -1,6 +1,21 @@
 #include <gtest/gtest.h>
+#include <glog/logging.h>
 
 int main(int argc, char* argv[]) {
+    google::InitGoogleLogging(argv[0]);
+    FLAGS_logtostderr = 0;
+    FLAGS_alsologtostderr = 0;
+    FLAGS_timestamp_in_logfile_name = 0;
+
+    // Use stable per-severity files and avoid timestamp filename collisions.
+    google::SetLogDestination(google::GLOG_INFO, "celeritas.log");
+    google::SetLogDestination(google::GLOG_WARNING, "celeritas.log");
+    google::SetLogDestination(google::GLOG_ERROR, "celeritas.log");
+    google::SetLogDestination(google::GLOG_FATAL, "celeritas.log");
+
     testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    const int ret = RUN_ALL_TESTS();
+
+    google::ShutdownGoogleLogging();
+    return ret;
 }

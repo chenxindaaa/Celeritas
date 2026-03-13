@@ -14,8 +14,20 @@
 #include "../cudaUtil/utils.hpp"
 #include "../designPattren/Singleton.h"
 
-namespace baseutil {
-namespace memory {
+namespace eUTIL {
+
+enum class DeviceType {
+    kCpu = 0,
+    kCuda = 1,
+};
+
+inline constexpr bool IsCpuDevice(DeviceType device) {
+    return device == DeviceType::kCpu;
+}
+
+inline constexpr bool IsCudaDevice(DeviceType device) {
+    return device == DeviceType::kCuda;
+}
 
 // Base memory pool with size-class free lists (bucketized by request size).
 class MemoryPool {
@@ -80,37 +92,24 @@ class CudaMemoryPool final : public MemoryPool {
     void DeallocateRaw(void* ptr) override;
 };
 
+// Template constraints
 template <typename T>
 struct PoolTraits {
-    static constexpr bool kSupported = false;
-};
-
-template <>
-struct PoolTraits<int> {
-    static constexpr bool kSupported = true;
-};
-
-template <>
-struct PoolTraits<float> {
-    static constexpr bool kSupported = true;
-};
-
-template <>
-struct PoolTraits<double> {
-    static constexpr bool kSupported = true;
+    static constexpr bool kSupported =
+        std::is_object<T>::value && !std::is_void<T>::value;
 };
 
 template <typename T>
 T* AllocateTyped(MemoryPool& pool, std::size_t count = 1) {
     static_assert(PoolTraits<T>::kSupported,
-                  "Type is not specialized in PoolTraits");
+                  "AllocateTyped only supports object types");
     return pool.Allocate<T>(count);
 }
 
 template <typename T>
 void DeallocateTyped(MemoryPool& pool, T* ptr, std::size_t count = 1) {
     static_assert(PoolTraits<T>::kSupported,
-                  "Type is not specialized in PoolTraits");
+                  "DeallocateTyped only supports object types");
     pool.Deallocate<T>(ptr, count);
 }
 
@@ -154,5 +153,4 @@ class MemoryMgr final : public Singleton<MemoryMgr> {
     std::unordered_map<std::type_index, std::unique_ptr<MemoryPool>> m_pools;
 };
 
-}  // namespace memory
-}  // namespace baseutil
+}  // namespace eUTIL

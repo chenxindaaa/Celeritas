@@ -24,11 +24,11 @@ void CheckCuda(cudaError_t code, const char* op) {
 
 }  // namespace
 
-namespace kernel {
+namespace eCEL {
 
-void add_kernel_cu(const baseutil::tensor::Tensor<int>& input1,
-                   const baseutil::tensor::Tensor<int>& input2,
-                   baseutil::tensor::Tensor<int>& output, void* stream) {
+void add_kernel_cu(const eUTIL::Tensor<int>& input1,
+                   const eUTIL::Tensor<int>& input2,
+                   eUTIL::Tensor<int>& output, void* stream) {
     const int32_t size = static_cast<int32_t>(input1.size());
     if (size != static_cast<int32_t>(input2.size()) ||
         size != static_cast<int32_t>(output.size())) {
@@ -43,4 +43,4 @@ void add_kernel_cu(const baseutil::tensor::Tensor<int>& input1,
     CheckCuda(cudaPeekAtLastError(), "AddKernel launch");
 }
 
-}  // namespace kernel
+}  // namespace eCEL

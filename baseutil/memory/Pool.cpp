@@ -5,8 +5,7 @@
 #include <string>
 #include <cuda_runtime_api.h>
 
-namespace baseutil {
-namespace memory {
+namespace eUTIL {
 
 namespace {
 
@@ -132,37 +131,4 @@ void CudaMemoryPool::DeallocateRaw(void* ptr) {
     }
 }
 
-template <>
-int* AllocateTyped<int>(MemoryPool& pool, std::size_t count) {
-    return pool.Allocate<int>(count);
-}
-
-template <>
-float* AllocateTyped<float>(MemoryPool& pool, std::size_t count) {
-    return pool.Allocate<float>(count);
-}
-
-template <>
-double* AllocateTyped<double>(MemoryPool& pool, std::size_t count) {
-    return pool.Allocate<double>(count);
-}
-
-template <>
-void DeallocateTyped<int>(MemoryPool& pool, int* ptr, std::size_t count) {
-    pool.Deallocate<int>(ptr, count);
-}
-
-template <>
-void DeallocateTyped<float>(MemoryPool& pool, float* ptr,
-                            std::size_t count) {
-    pool.Deallocate<float>(ptr, count);
-}
-
-template <>
-void DeallocateTyped<double>(MemoryPool& pool, double* ptr,
-                             std::size_t count) {
-    pool.Deallocate<double>(ptr, count);
-}
-
-}  // namespace memory
-}  // namespace baseutil
+}  // namespace eUTIL

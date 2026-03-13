@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(celeritas_pool_tests LANGUAGES CXX)
+project(celeritas_gtests LANGUAGES CXX)
 enable_language(CUDA)
 
 # Single-config generators (Ninja/Makefiles): default to Debug if not set.
@@ -16,13 +16,22 @@ set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 find_package(GTest REQUIRED)
+find_package(glog REQUIRED)
 find_package(CUDAToolkit REQUIRED)
+
+if (TARGET glog::glog)
+  set(CELERITAS_GLOG_TARGET glog::glog)
+elseif(TARGET Glog::glog)
+  set(CELERITAS_GLOG_TARGET Glog::glog)
+else()
+  message(FATAL_ERROR "glog target not found after find_package(glog REQUIRED)")
+endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../baseutil
                  ${CMAKE_BINARY_DIR}/baseutil)
 
 add_library(celeritas_kernels STATIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../celeritas/operation/kernels/gpu/add.cu
+  ${CMAKE_CURRENT_SOURCE_DIR}/../celeritas/kernels/gpu/add.cu
 )
 target_include_directories(celeritas_kernels
   PUBLIC
@@ -47,28 +56,31 @@ target_compile_options(celeritas_kernels
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>
 )
 
-add_executable(test_pool
+add_executable(test_celeritas
   testMain.cpp
+  testUtil/testLog.cpp
   testUtil/testPool.cpp
+  testUtil/testTensor.cpp
   testOperation/testAdd.cpp
 )
 
-target_link_libraries(test_pool
+target_link_libraries(test_celeritas
   PRIVATE
     baseutil_memory
     celeritas_kernels
     GTest::gtest
+    ${CELERITAS_GLOG_TARGET}
 )
 
-target_compile_options(test_pool
+target_compile_options(test_celeritas
   PRIVATE
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>
 )
 
-target_include_directories(test_pool
+target_include_directories(test_celeritas
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
 enable_testing()
-add_test(NAME pool_tests COMMAND celeritas_gtest)
+add_test(NAME pool_tests COMMAND test_celeritas)

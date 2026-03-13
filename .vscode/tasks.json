@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "configure-debug-test_pool",
+      "label": "configure-debug-test_celeritas",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -18,14 +18,14 @@
       "problemMatcher": []
     },
     {
-      "label": "build-debug-test_pool",
+      "label": "build-debug-test_celeritas",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "build/debug",
         "--target",
-        "test_pool",
+        "test_celeritas",
         "-j",
         "32"
       ],
@@ -37,7 +37,7 @@
         "isDefault": true
       },
       "dependsOn": [
-        "configure-debug-test_pool"
+        "configure-debug-test_celeritas"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []

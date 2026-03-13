@@ -7,19 +7,18 @@
 
 #include <cuda_runtime_api.h>
 
-namespace baseutil {
-namespace tensor {
+namespace eUTIL {
 
 template <typename T>
 Tensor<T>::Tensor(std::size_t size, DeviceType device)
     : m_size(size), m_device(device), m_data(nullptr) {
-    auto& mgr = memory::MemoryMgr::getInstance();
+    auto& mgr = MemoryMgr::getInstance();
     switch (m_device) {
         case DeviceType::kCpu:
-            m_data = memory::AllocateTyped<T>(mgr.GetCpuPool(), m_size);
+            m_data = AllocateTyped<T>(mgr.GetCpuPool(), m_size);
             break;
         case DeviceType::kCuda:
-            m_data = memory::AllocateTyped<T>(mgr.GetCudaPool(), m_size);
+            m_data = AllocateTyped<T>(mgr.GetCudaPool(), m_size);
             break;
         default:
             throw std::runtime_error("Unsupported device type");
@@ -66,8 +65,8 @@ Tensor<T>& Tensor<T>::cpu() {
         return *this;
     }
 
-    auto& mgr = memory::MemoryMgr::getInstance();
-    T* hostData = memory::AllocateTyped<T>(mgr.GetCpuPool(), m_size);
+    auto& mgr = MemoryMgr::getInstance();
+    T* hostData = AllocateTyped<T>(mgr.GetCpuPool(), m_size);
     try {
         const cudaError_t err =
             cudaMemcpy(hostData, m_data, sizeof(T) * m_size, cudaMemcpyDeviceToHost);
@@ -76,11 +75,11 @@ Tensor<T>& Tensor<T>::cpu() {
                                      cudaGetErrorString(err));
         }
     } catch (...) {
-        memory::DeallocateTyped<T>(mgr.GetCpuPool(), hostData, m_size);
+        DeallocateTyped<T>(mgr.GetCpuPool(), hostData, m_size);
         throw;
     }
 
-    memory::DeallocateTyped<T>(mgr.GetCudaPool(), m_data, m_size);
+    DeallocateTyped<T>(mgr.GetCudaPool(), m_data, m_size);
     m_data = hostData;
     m_device = DeviceType::kCpu;
     return *this;
@@ -96,8 +95,8 @@ Tensor<T>& Tensor<T>::cuda() {
         return *this;
     }
 
-    auto& mgr = memory::MemoryMgr::getInstance();
-    T* deviceData = memory::AllocateTyped<T>(mgr.GetCudaPool(), m_size);
+    auto& mgr = MemoryMgr::getInstance();
+    T* deviceData = AllocateTyped<T>(mgr.GetCudaPool(), m_size);
     try {
         const cudaError_t err =
             cudaMemcpy(deviceData, m_data, sizeof(T) * m_size, cudaMemcpyHostToDevice);
@@ -106,11 +105,11 @@ Tensor<T>& Tensor<T>::cuda() {
                                      cudaGetErrorString(err));
         }
     } catch (...) {
-        memory::DeallocateTyped<T>(mgr.GetCudaPool(), deviceData, m_size);
+        DeallocateTyped<T>(mgr.GetCudaPool(), deviceData, m_size);
         throw;
     }
 
-    memory::DeallocateTyped<T>(mgr.GetCpuPool(), m_data, m_size);
+    DeallocateTyped<T>(mgr.GetCpuPool(), m_data, m_size);
     m_data = deviceData;
     m_device = DeviceType::kCuda;
     return *this;
@@ -123,11 +122,11 @@ void Tensor<T>::Release() noexcept {
     }
 
     try {
-        auto& mgr = memory::MemoryMgr::getInstance();
+        auto& mgr = MemoryMgr::getInstance();
         if (m_device == DeviceType::kCpu) {
-            memory::DeallocateTyped<T>(mgr.GetCpuPool(), m_data, m_size);
+            DeallocateTyped<T>(mgr.GetCpuPool(), m_data, m_size);
         } else {
-            memory::DeallocateTyped<T>(mgr.GetCudaPool(), m_data, m_size);
+            DeallocateTyped<T>(mgr.GetCudaPool(), m_data, m_size);
         }
     } catch (...) {
         // Destructors must not throw.
@@ -142,5 +141,4 @@ template class Tensor<int>;
 template class Tensor<float>;
 template class Tensor<double>;
 
-}  // namespace tensor
-}  // namespace baseutil
+}  // namespace eUTIL
