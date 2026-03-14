@@ -23,28 +23,26 @@ enum class LayerType {
 template <typename T>
 class BaseLayer {
    public:
-    using TensorType = eUTIL::Tensor<T>;
-    using InputList = std::vector<std::reference_wrapper<const TensorType>>;
+    using InputList = std::vector<std::reference_wrapper<const eUTIL::Tensor<T>>>;
 
-    explicit BaseLayer(eUTIL::DeviceType device, LayerType type,
-                       std::string name = "")
-        : m_device(device), m_type(type), m_name(std::move(name)) {}
+    explicit BaseLayer(eUTIL::DeviceType device, std::string name = "")
+        : m_device(device), m_name(std::move(name)) {}
     virtual ~BaseLayer() = default;
 
     BaseLayer(const BaseLayer&) = delete;
     BaseLayer& operator=(const BaseLayer&) = delete;
 
     // Unified forward API: arbitrary number of inputs + one output.
-    virtual Status Forward(const InputList& inputs, TensorType& output) = 0;
+    virtual Status Forward(const InputList& inputs, eUTIL::Tensor<T>& output) = 0;
 
     eUTIL::DeviceType device() const { return m_device; }
-    LayerType type() const { return m_type; }
+    // LayerType type() const { return m_type; }
     const std::string& name() const { return m_name; }
     void set_name(const std::string& name) { m_name = name; }
 
    protected:
     eUTIL::DeviceType m_device;
-    LayerType m_type;
+    // LayerType m_type;
     std::string m_name;
 };
 

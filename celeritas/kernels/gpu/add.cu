@@ -26,6 +26,7 @@ void CheckCuda(cudaError_t code, const char* op) {
 
 namespace eCEL {
 
+template<>
 void add_kernel_cu(const eUTIL::Tensor<int>& input1,
                    const eUTIL::Tensor<int>& input2,
                    eUTIL::Tensor<int>& output, void* stream) {

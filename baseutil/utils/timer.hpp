@@ -5,6 +5,7 @@
 #include <string>
 #include "cuda_runtime.h"
 
+namespace eUTIL {
 
 class Timer {
 public:
@@ -48,3 +49,4 @@ void Timer::duration_cpu(std::string msg){
     std::chrono::duration<double, span> time = _cStop - _cStart;
     LOG("%-40s uses %.6lf %s", msg.c_str(), time.count(), str.c_str());
 }
+}  // namespace eUTIL

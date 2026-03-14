@@ -29,32 +29,8 @@ endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../baseutil
                  ${CMAKE_BINARY_DIR}/baseutil)
-
-add_library(celeritas_kernels STATIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../celeritas/kernels/gpu/add.cu
-)
-target_include_directories(celeritas_kernels
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-target_link_libraries(celeritas_kernels
-  PUBLIC
-    CUDA::cudart
-)
-set_target_properties(celeritas_kernels PROPERTIES
-  CUDA_STANDARD 17
-  CUDA_STANDARD_REQUIRED ON
-)
-
-# Debug flags for cuda-gdb:
-# -G: generate device debug info (disables most optimizations for device code)
-# -g: host debug symbols
-# -lineinfo: richer source/line mapping in device code
-target_compile_options(celeritas_kernels
-  PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-g;-O0;-lineinfo>
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>
-)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../celeritas
+                 ${CMAKE_BINARY_DIR}/celeritas)
 
 add_executable(test_celeritas
   testMain.cpp
@@ -66,8 +42,8 @@ add_executable(test_celeritas
 
 target_link_libraries(test_celeritas
   PRIVATE
-    baseutil_memory
-    celeritas_kernels
+    baseutil
+    celeritas
     GTest::gtest
     ${CELERITAS_GLOG_TARGET}
 )

@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <initializer_list>
 #include <type_traits>
+#include <vector>
 
 #include "../memory/Pool.h"
 
@@ -9,36 +12,65 @@ namespace eUTIL {
 
 template <typename T>
 class Tensor {
-   public:
-    static_assert(PoolTraits<T>::kSupported,
-                  "Unsupported type");
+    public:
+        static_assert(PoolTraits<T>::kSupported,
+                      "Unsupported type");
 
-    Tensor(std::size_t size, DeviceType device);
-    ~Tensor() noexcept;
+        Tensor(DeviceType device, std::initializer_list<std::size_t> dims);
 
-    Tensor(const Tensor&) = delete;
-    Tensor& operator=(const Tensor&) = delete;
+        template <typename... Dims,
+                  typename = std::enable_if_t<(sizeof...(Dims) > 0) &&
+                                              (std::is_integral_v<Dims> && ...)>>
+        Tensor(DeviceType device, Dims... dims)
+            : Tensor(device, {static_cast<std::size_t>(dims)...}) {}
 
-    Tensor(Tensor&& other) noexcept;
-    Tensor& operator=(Tensor&& other) noexcept;
+        ~Tensor() noexcept;
 
-    T& operator[](int idx) { return m_data[idx]; }
+        Tensor(const Tensor&);
+        Tensor& operator=(const Tensor&);
 
-    // Convert in-place to CPU/CUDA storage. If already on target device, no-op.
-    Tensor& cpu();
-    Tensor& cuda();
+        Tensor(Tensor&& other) noexcept;
+        Tensor& operator=(Tensor&& other) noexcept;
 
-    T* data() { return m_data; }
-    const T* data() const { return m_data; }
-    std::size_t size() const { return m_size; }
-    DeviceType device() const { return m_device; }
+        T& operator[](int idx) { return m_data[idx]; }
 
-   private:
-    void Release() noexcept;
+        // Convert in-place to CPU/CUDA storage. If already on target device, no-op.
+        Tensor& cpu();
+        Tensor& cuda();
 
-    std::size_t m_size;
-    DeviceType m_device;
-    T* m_data;
+        T* data() { return m_data; }
+        const T* data() const { return m_data; }
+        int32_t dimSize() const { return static_cast<int32_t>(m_dims.size()); }
+        const std::vector<std::size_t>& dims() const { return m_dims; }
+        bool empty() const { return !m_size || !m_data; }
+        DeviceType device() const { return m_device; }
+        std::size_t size() const { return m_size; }
+        std::size_t byteSize() const { return m_size * sizeof(T); }
+        std::size_t useCount() const { return m_refCount ? *m_refCount : 0; }
+        const std::vector<size_t> strides() const 
+        {
+            std::vector<size_t> strides;
+            if (!m_dims.empty()) {
+                for (int32_t i = 0; i < m_dims.size() - 1; ++i) {
+                size_t stride = reduceDims(m_dims.begin() + i + 1, m_dims.end(), 1);
+                strides.push_back(stride);
+                }
+                strides.push_back(1);
+            }
+            return strides;
+        }
+
+    private:
+        void AcquireFrom(const Tensor& other);
+        void ReleaseOwnership() noexcept;
+        void Release() noexcept;
+        static std::size_t CalcSize(std::initializer_list<std::size_t> dims);
+
+        std::size_t m_size;
+        std::vector<std::size_t> m_dims;
+        DeviceType m_device;
+        T* m_data;
+        std::size_t* m_refCount;
 };
 
 extern template class Tensor<int>;

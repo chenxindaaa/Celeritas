@@ -11,15 +11,20 @@
 #include <utility>
 #include <vector>
 
-#include "../cudaUtil/utils.hpp"
+#include "../utils/utils.hpp"
 #include "../designPattren/Singleton.h"
 
 namespace eUTIL {
 
 enum class DeviceType {
+    kUnknown = -1,
     kCpu = 0,
     kCuda = 1,
 };
+
+inline constexpr bool IsUnknownDevice(DeviceType device) {
+    return device == DeviceType::kUnknown;
+}
 
 inline constexpr bool IsCpuDevice(DeviceType device) {
     return device == DeviceType::kCpu;

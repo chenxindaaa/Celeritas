@@ -1,76 +1,70 @@
 # Celeritas
 
-轻量 CUDA/C++ 实验工程，当前包含：
-- `baseutil`：内存池（CPU/GPU）与 `Tensor` 基础能力
-- `celeritas`：示例 CUDA kernel（`add`）
-- `test`：基于 gtest 的单元测试（含 pool/tensor/add）
+Celeritas is a C++ large language model (LLM) inference framework.
 
-## 1. 依赖
+It is designed around a clear separation of:
 
-- CMake >= 3.18
-- C++17 编译器
-- CUDA Toolkit（必需）
-- GTest
+- `baseutil`: foundational runtime utilities (memory pool, tensor, CUDA helpers)
+- `celeritas`: model-side operators and kernels
+- `test`: unit and integration tests
 
-说明：当前工程强制要求 CUDA，若本机没有 CUDA，CMake 配置会直接失败。
+## Goals
 
-## 2. 目录结构
+- Build an efficient and extensible C++ inference runtime
+- Support heterogeneous backends (CPU/CUDA today, more backends later)
+- Keep kernel dispatch and tensor/memory abstractions modular
+
+## Repository Layout
 
 ```text
 baseutil/
-  memory/Pool.h, Pool.cpp
-  tensor/tensor.h, tensor.cpp
+  memory/           # memory pools and memory manager
+  tensor/           # tensor abstraction
+  cudaUtil/         # CUDA utility wrappers
+  CMakeLists.txt
+
 celeritas/
-  operation/kernels/gpu/add.cuh, add.cu
+  kernels/          # kernel implementations + kernel factory
+  operation/        # higher-level ops (ongoing)
+  CMakeLists.txt
+
 test/
-  testUtil/testPool.cpp
-  testOperation/testAdd.cpp
+  testUtil/         # utility-level tests (pool/tensor)
+  testOperation/    # op/kernel-level tests
   CMakeLists.txt
 ```
 
-## 3. 构建与运行测试
+## Build Requirements
 
-在项目根目录执行：
+- CMake >= 3.18
+- C++17 compiler
+- CUDA Toolkit
+- Armadillo
+- GTest
+- glog
 
-```powershell
-cmake -S test -B build/debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/debug --target test_pool
+## Build And Test
+
+From repository root:
+
+```bash
+cmake -S test -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
 
-运行测试：
+## Current Status
 
-```powershell
-.\build\debug\test_pool.exe
-```
+- Tensor supports multi-dimensional shape metadata (`dims`)
+- Tensor supports CPU/CUDA device conversion
+- Tensor currently uses shared ownership semantics via internal ref-counting
+- Kernel dispatch is handled by `KernelFactory`
+- Example kernels: `add`, `emb` (CPU path available, CUDA path partially integrated)
 
-或使用 CTest：
+## Roadmap
 
-```powershell
-ctest --test-dir build/debug --output-on-failure
-```
-
-## 4. CUDA 调试（cuda-gdb）
-
-`test/CMakeLists.txt` 已在 `Debug` 下添加 CUDA 调试信息参数：
-- `-G`
-- `-g`
-- `-lineinfo`
-- `-Xcompiler=-O0,-g`
-
-建议使用与当前系统匹配的 `cuda-gdb` 环境（如 Linux/WSL + CUDA 工具链）。
-
-## 5. VSCode
-
-工程内已包含 `.vscode/tasks.json` 与 `.vscode/launch.json` 示例配置，可用于：
-- 构建 `build/debug/test_pool`
-- 启动 gdb 调试 `test_pool`
-
-如调试器路径不同，请修改 `launch.json` 中的 `miDebuggerPath`。
-
-## 6. 当前实现要点
-
-- `MemoryMgr` 为单例，统一管理各类 `MemoryPool`
-- `MemoryPool` 使用 size-class freelist 提高复用率
-- `Tensor<T>` 目前支持 `int/float/double`
-- `Tensor::cpu()` / `Tensor::cuda()` 支持 CPU/GPU 间数据迁移
+- More LLM kernels (matmul/rmsnorm/rope/mha/softmax)
+- Unified backend registration mechanism (CPU/CUDA/OpenCL...)
+- Graph-level scheduling and execution
+- Quantization and performance optimizations
 

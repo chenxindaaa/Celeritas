@@ -1,8 +1,24 @@
-#ifndef KUIPER_INCLUDE_OP_KERNEL
-#define KUIPER_INCLUDE_OP_KERNEL
-#include "tensor/tensor.h"
-namespace kernel {
-void add_kernel_cpu(const tensor::Tensor& input1, const tensor::Tensor& input2,
-                    const tensor::Tensor& output, void* stream = nullptr);
-}  // namespace kernel
-#endif
+#pragma once
+#include <armadillo>
+
+#include "baseutil/tensor/tensor.h"
+
+namespace eCEL {
+template<typename T>
+void add_kernel_cpu(const eUTIL::Tensor<T>& input1, const eUTIL::Tensor<T>& input2,
+                    eUTIL::Tensor<T>& output, void* stream = nullptr)
+{
+    // UNUSED(stream);
+    // CHECK_EQ(input1.empty(), false);
+    // CHECK_EQ(input2.empty(), false);
+    // CHECK_EQ(output.empty(), false);
+
+    // CHECK_EQ(input1.size(), input2.size());
+    // CHECK_EQ(input1.size(), output.size());
+
+    arma::Col<T> input_vec1(const_cast<T*>(input1.data()), input1.size(), false, true);
+    arma::Col<T> input_vec2(const_cast<T*>(input2.data()), input2.size(), false, true);
+    arma::Col<T> output_vec(output.data(), output.size(), false, true);
+    output_vec = input_vec1 + input_vec2;
+}
+}  // namespace eCEL

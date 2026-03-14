@@ -3,12 +3,22 @@
 #include <cuda_runtime.h>
 #include <system_error>
 #include <stdarg.h>
+#include <numeric>
 
+namespace eUTIL {
+    
 #define CUDA_CHECK(call)             __cudaCheck(call, __FILE__, __LINE__)
 #define CUDA_KERNEL_CHECK()          __kernelCheck(__FILE__, __LINE__)
 #define LOG(...)                     __log_info(__VA_ARGS__)
 
-#define BLOCKSIZE 16
+template <typename T, typename Tp>
+static size_t reduceDims(T begin, T end, Tp init) {
+    if (begin >= end) {
+        return 0;
+    }
+    size_t size = std::accumulate(begin, end, init, std::multiplies<>());
+    return size;
+}
 
 inline static void __cudaCheck(cudaError_t err, const char* file, const int line) 
 {
@@ -46,3 +56,5 @@ static void __log_info(const char* format, ...)
 void initMatrix(float* data, int size, int seed);
 void printMat(float* data, int size);
 void compareMat(float* h_data, float* d_data, int size);
+
+}  // namespace eUTIL
