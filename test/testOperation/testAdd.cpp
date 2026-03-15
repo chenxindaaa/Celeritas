@@ -23,14 +23,14 @@ TEST(test_add, gpu_add) {
         cpuB[i] = std::rand() % 10;
     }
 
-    auto addKernelCpu = eCEL::KernelFactory::getAddKernel(cpuA, cpuB, cpuO);
+    auto addKernelCpu = eCEL::KernelFactory::getAddKernel();
     addKernelCpu(cpuA, cpuB, cpuO, nullptr);
 
     Tensor<int> gpuA = cpuA.cuda();
     Tensor<int> gpuB = cpuB.cuda();
     Tensor<int> gpuO(DeviceType::kCuda, kCount);
 
-    auto addKernelCuda = eCEL::KernelFactory::getAddKernel(gpuA, gpuB, gpuO);
+    auto addKernelCuda = eCEL::KernelFactory::getAddKernel();
     addKernelCuda(gpuA, gpuB, gpuO, nullptr);
     ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
 
