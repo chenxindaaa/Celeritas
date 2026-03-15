@@ -1,8 +1,7 @@
 #include "KernelFactory.h"
 
-#include <mutex>
-
 #include "cpu/add_kernel.h"
+#include "cpu/emb_kernel.h"
 #include "gpu/add.cuh"
 
 namespace eCEL {
@@ -12,11 +11,31 @@ AddDispatcher KernelFactory::getAddKernel() {
     return AddDispatcher();
 }
 
+EmbDispatcher KernelFactory::getEmbKernel() {
+    ensureRegistryInitialized();
+    return EmbDispatcher();
+}
+ 
 void KernelFactory::ensureRegistryInitialized() {
     static std::once_flag initFlag;
     std::call_once(initFlag, [] {
-        KernelRegistry::registerAddKernel<int>(eUTIL::DeviceType::kCpu, add_kernel_cpu<int>);
-        KernelRegistry::registerAddKernel<int>(eUTIL::DeviceType::kCuda, add_kernel_cu<int>);
+        auto& dispatcher = Dispatcher::getInstance();
+        dispatcher.registerKernel<AddKernelFn<int>>(OpType::kAdd,
+                                                    eUTIL::DeviceType::kCpu,
+                                                    eUTIL::DType::kInt32,
+                                                    add_kernel_cpu<int>);
+        dispatcher.registerKernel<AddKernelFn<float>>(OpType::kAdd,
+                                                    eUTIL::DeviceType::kCpu,
+                                                    eUTIL::DType::kFloat32,
+                                                    add_kernel_cpu<float>);
+        dispatcher.registerKernel<AddKernelFn<int>>(OpType::kAdd,
+                                                    eUTIL::DeviceType::kCuda,
+                                                    eUTIL::DType::kInt32,
+                                                    add_kernel_cu<int>);
+        dispatcher.registerKernel<EmbKernelFn>(OpType::kEmb,
+                                               eUTIL::DeviceType::kCpu,
+                                               eUTIL::DType::kFloat32,
+                                               embKernelCpu);
     });
 }
 

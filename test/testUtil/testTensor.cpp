@@ -5,6 +5,7 @@
 #include "baseutil/tensor/tensor.h"
 
 using eUTIL::DeviceType;
+using eUTIL::DType;
 using eUTIL::Tensor;
 
 TEST(test_tensor, cpu_tensor_alloc_and_reuse) {
@@ -53,9 +54,44 @@ TEST(test_tensor, gpu_tensor_alloc_and_reuse) {
 TEST(test_tensor, tensor_multi_dims_size) {
     Tensor<int> t(DeviceType::kCpu, 3, 4);
     EXPECT_EQ(t.size(), 12);
+    EXPECT_EQ(t.dtype(), DType::kInt32);
     ASSERT_EQ(t.dims().size(), 2);
     EXPECT_EQ(t.dims()[0], 3);
     EXPECT_EQ(t.dims()[1], 4);
+}
+
+TEST(test_tensor, tensor_dtype_matches_template_type) {
+    Tensor<int> tInt(DeviceType::kCpu, 2, 3);
+    Tensor<float> tFloat(DeviceType::kCpu, 2, 3);
+    Tensor<double> tDouble(DeviceType::kCpu, 2, 3);
+
+    EXPECT_EQ(tInt.dtype(), DType::kInt32);
+    EXPECT_EQ(tFloat.dtype(), DType::kFloat32);
+    EXPECT_EQ(tDouble.dtype(), DType::kFloat64);
+}
+
+TEST(test_tensor, tensor_dtype_survives_copy_move_and_device_convert) {
+    Tensor<float> a(DeviceType::kCpu, 8);
+    EXPECT_EQ(a.dtype(), DType::kFloat32);
+
+    Tensor<float> b = a;
+    EXPECT_EQ(a.dtype(), DType::kFloat32);
+    EXPECT_EQ(b.dtype(), DType::kFloat32);
+
+    Tensor<float> c = std::move(b);
+    EXPECT_EQ(c.dtype(), DType::kFloat32);
+    EXPECT_EQ(b.dtype(), DType::kUnknown);
+
+    int deviceCount = 0;
+    if (cudaGetDeviceCount(&deviceCount) == cudaSuccess && deviceCount > 0) {
+        c.cuda();
+        EXPECT_EQ(c.device(), DeviceType::kCuda);
+        EXPECT_EQ(c.dtype(), DType::kFloat32);
+
+        c.cpu();
+        EXPECT_EQ(c.device(), DeviceType::kCpu);
+        EXPECT_EQ(c.dtype(), DType::kFloat32);
+    }
 }
 
 TEST(test_tensor, tensor_copy_increments_refcount) {

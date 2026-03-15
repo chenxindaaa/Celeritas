@@ -11,15 +11,16 @@
 #include <utility>
 #include <vector>
 
-#include "../utils/utils.hpp"
 #include "../designPattren/Singleton.h"
+#include "../utils/utils.hpp"
 
 namespace eUTIL {
 
 enum class DeviceType {
-    kUnknown = -1,
-    kCpu = 0,
-    kCuda = 1,
+    kUnknown,
+    kCpu,
+    kCuda,
+    kNumDeviceTypes,
 };
 
 inline constexpr bool IsUnknownDevice(DeviceType device) {
@@ -36,7 +37,7 @@ inline constexpr bool IsCudaDevice(DeviceType device) {
 
 // Base memory pool with size-class free lists (bucketized by request size).
 class MemoryPool {
-   public:
+public:
     MemoryPool() : m_cachedBytes(0), m_cachedBlockCount(0) {}
     virtual ~MemoryPool() = default;
 
@@ -67,12 +68,12 @@ class MemoryPool {
         DeallocateBytes(static_cast<void*>(ptr), sizeof(T) * count);
     }
 
-   protected:
+protected:
     void ClearCachedBlocks();
     virtual void* AllocateRaw(std::size_t bytes) = 0;
     virtual void DeallocateRaw(void* ptr) = 0;
 
-   private:
+private:
     mutable std::mutex m_mutex;
     std::unordered_map<std::size_t, std::vector<void*>> m_freeLists;
     std::size_t m_cachedBytes;
@@ -80,19 +81,19 @@ class MemoryPool {
 };
 
 class CpuMemoryPool final : public MemoryPool {
-   public:
+public:
     ~CpuMemoryPool() override { ClearCachedBlocks(); }
 
-   protected:
+protected:
     void* AllocateRaw(std::size_t bytes) override;
     void DeallocateRaw(void* ptr) override;
 };
 
 class CudaMemoryPool final : public MemoryPool {
-   public:
+public:
     ~CudaMemoryPool() override { ClearCachedBlocks(); }
 
-   protected:
+protected:
     void* AllocateRaw(std::size_t bytes) override;
     void DeallocateRaw(void* ptr) override;
 };
@@ -121,7 +122,7 @@ void DeallocateTyped(MemoryPool& pool, T* ptr, std::size_t count = 1) {
 class MemoryMgr final : public Singleton<MemoryMgr> {
     friend class Singleton<MemoryMgr>;
 
-   public:
+public:
     ~MemoryMgr();
 
     MemoryMgr(const MemoryMgr&) = delete;
@@ -151,7 +152,7 @@ class MemoryMgr final : public Singleton<MemoryMgr> {
 
     void DestroyAllPools();
 
-   private:
+private:
     MemoryMgr() = default;
 
     std::mutex m_poolMutex;

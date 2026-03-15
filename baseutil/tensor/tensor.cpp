@@ -31,6 +31,7 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
     : m_size(CalcSize(dims)),
       m_dims(dims),
       m_device(device),
+      m_dtype(DTypeTrait<T>::kValue),
       m_data(nullptr),
       m_refCount(nullptr) {
     if (m_device == DeviceType::kUnknown) {
@@ -63,6 +64,7 @@ void Tensor<T>::AcquireFrom(const Tensor& other) {
     m_size = other.m_size;
     m_dims = other.m_dims;
     m_device = other.m_device;
+    m_dtype = other.m_dtype;
     m_data = other.m_data;
     m_refCount = other.m_refCount;
     if (m_refCount) {
@@ -86,6 +88,7 @@ void Tensor<T>::ReleaseOwnership() noexcept {
     m_size = 0;
     m_dims.clear();
     m_device = DeviceType::kUnknown;
+    m_dtype = DType::kUnknown;
 }
 
 template <typename T>
@@ -93,6 +96,7 @@ Tensor<T>::Tensor(const Tensor& other)
     : m_size(0),
       m_dims(),
       m_device(DeviceType::kUnknown),
+      m_dtype(DType::kUnknown),
       m_data(nullptr),
       m_refCount(nullptr) {
     AcquireFrom(other);
@@ -116,11 +120,13 @@ Tensor<T>::Tensor(Tensor&& other) noexcept
     : m_size(other.m_size),
       m_dims(std::move(other.m_dims)),
       m_device(other.m_device),
+      m_dtype(other.m_dtype),
       m_data(other.m_data),
       m_refCount(other.m_refCount) {
     other.m_size = 0;
     other.m_dims.clear();
     other.m_device = DeviceType::kUnknown;
+    other.m_dtype = DType::kUnknown;
     other.m_data = nullptr;
     other.m_refCount = nullptr;
 }
@@ -135,12 +141,14 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept {
     m_size = other.m_size;
     m_dims = std::move(other.m_dims);
     m_device = other.m_device;
+    m_dtype = other.m_dtype;
     m_data = other.m_data;
     m_refCount = other.m_refCount;
 
     other.m_size = 0;
     other.m_dims.clear();
     other.m_device = DeviceType::kUnknown;
+    other.m_dtype = DType::kUnknown;
     other.m_data = nullptr;
     other.m_refCount = nullptr;
     return *this;
@@ -176,11 +184,13 @@ Tensor<T>& Tensor<T>::cpu() {
 
     const std::size_t originalSize = m_size;
     const std::vector<std::size_t> originalDims = m_dims;
+    const DType originalDType = m_dtype;
     ReleaseOwnership();
     m_data = hostData;
     m_size = originalSize;
     m_dims = originalDims;
     m_device = DeviceType::kCpu;
+    m_dtype = originalDType;
     m_refCount = new std::size_t(1);
     return *this;
 }
@@ -215,11 +225,13 @@ Tensor<T>& Tensor<T>::cuda() {
 
     const std::size_t originalSize = m_size;
     const std::vector<std::size_t> originalDims = m_dims;
+    const DType originalDType = m_dtype;
     ReleaseOwnership();
     m_data = deviceData;
     m_size = originalSize;
     m_dims = originalDims;
     m_device = DeviceType::kCuda;
+    m_dtype = originalDType;
     m_refCount = new std::size_t(1);
     return *this;
 }

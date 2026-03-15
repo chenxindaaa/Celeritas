@@ -10,11 +10,41 @@
 
 namespace eUTIL {
 
+enum class DType {
+    kUnknown,
+    kInt32,
+    kFloat32,
+    kFloat64,
+    kNumDTypes,
+};
+
+template <typename T>
+struct DTypeTrait {
+    static constexpr DType kValue = DType::kUnknown;
+};
+
+template <>
+struct DTypeTrait<int> {
+    static constexpr DType kValue = DType::kInt32;
+};
+
+template <>
+struct DTypeTrait<float> {
+    static constexpr DType kValue = DType::kFloat32;
+};
+
+template <>
+struct DTypeTrait<double> {
+    static constexpr DType kValue = DType::kFloat64;
+};
+
 template <typename T>
 class Tensor {
     public:
         static_assert(PoolTraits<T>::kSupported,
                       "Unsupported type");
+        static_assert(DTypeTrait<T>::kValue != DType::kUnknown,
+                      "Unsupported tensor dtype");
 
         Tensor(DeviceType device, std::initializer_list<std::size_t> dims);
 
@@ -44,6 +74,7 @@ class Tensor {
         const std::vector<std::size_t>& dims() const { return m_dims; }
         bool empty() const { return !m_size || !m_data; }
         DeviceType device() const { return m_device; }
+        DType dtype() const { return m_dtype; }
         std::size_t size() const { return m_size; }
         std::size_t byteSize() const { return m_size * sizeof(T); }
         std::size_t useCount() const { return m_refCount ? *m_refCount : 0; }
@@ -69,6 +100,7 @@ class Tensor {
         std::size_t m_size;
         std::vector<std::size_t> m_dims;
         DeviceType m_device;
+        DType m_dtype;
         T* m_data;
         std::size_t* m_refCount;
 };
