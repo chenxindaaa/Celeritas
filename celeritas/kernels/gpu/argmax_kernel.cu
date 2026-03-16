@@ -1,6 +1,6 @@
 #include "../kernels_interface.h"
 #include "argmax_kernel.cuh"
-#include "tensor/tensor.h"
+#include "core/Tensor.h"
 namespace kernel {
 __forceinline__ __device__ void warp_reduce_argmax(float& val, size_t& ptr) {
   float tmp_val;

@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.18)
 
 add_library(celeritas STATIC
+  kernels/KernelDispatcher.cpp
+  kernels/KernelRegistry.cpp
   kernels/gpu/add.cu
-  kernels/cpu/emb_kernel.cpp
   kernels/KernelFactory.cpp
 )
 

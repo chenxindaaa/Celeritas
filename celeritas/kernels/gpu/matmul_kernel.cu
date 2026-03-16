@@ -1,4 +1,4 @@
-#include <tensor/tensor.h>
+#include <core/Tensor.h>
 #include <cub/block/block_reduce.cuh>
 #include "../kernels_interface.h"
 #include "matmul_kernel.cuh"

@@ -27,8 +27,8 @@ else()
   message(FATAL_ERROR "glog target not found after find_package(glog REQUIRED)")
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../baseutil
-                 ${CMAKE_BINARY_DIR}/baseutil)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../udm
+                 ${CMAKE_BINARY_DIR}/udm)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../celeritas
                  ${CMAKE_BINARY_DIR}/celeritas)
 
@@ -42,7 +42,7 @@ add_executable(test_celeritas
 
 target_link_libraries(test_celeritas
   PRIVATE
-    baseutil
+    udm
     celeritas
     GTest::gtest
     ${CELERITAS_GLOG_TARGET}

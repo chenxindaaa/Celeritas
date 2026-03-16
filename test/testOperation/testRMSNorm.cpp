@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "baseutil/tensor/tensor.h"
+#include "udm/core/Tensor.h"
 #include "celeritas/kernels/KernelFactory.h"
 
 constexpr std::size_t kCount = 32 * 15;
@@ -44,3 +44,4 @@ TEST(test_rmsnorm, rmsnorm_cpu_matches_reference) {
         ASSERT_NEAR(cpuO[static_cast<int>(i)], refO[static_cast<int>(i)], 1e-5f);
     }
 }
+

@@ -1,9 +1,9 @@
-﻿#include <gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <cstdlib>
 
 #include <cuda_runtime_api.h>
 
-#include "baseutil/tensor/tensor.h"
+#include "udm/core/Tensor.h"
 #include "celeritas/kernels/KernelFactory.h"
 
 constexpr std::size_t kCount = 25;
@@ -39,3 +39,5 @@ TEST(test_add, gpu_add) {
         EXPECT_EQ(cpuO[i], gpuO[i]);
     }
 }
+
+

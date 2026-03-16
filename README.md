@@ -4,7 +4,7 @@ Celeritas is a C++ large language model (LLM) inference framework.
 
 It is designed around a clear separation of:
 
-- `baseutil`: foundational runtime utilities (memory pool, tensor, CUDA helpers)
+- `udm`: universal data model and foundational runtime utilities (memory pool, tensor, CUDA helpers)
 - `celeritas`: model-side operators and kernels
 - `test`: unit and integration tests
 
@@ -17,10 +17,11 @@ It is designed around a clear separation of:
 ## Repository Layout
 
 ```text
-baseutil/
+udm/
+  common/           # shared device/dtype definitions
+  core/             # tensor abstraction
   memory/           # memory pools and memory manager
-  tensor/           # tensor abstraction
-  cudaUtil/         # CUDA utility wrappers
+  utils/            # utility helpers
   CMakeLists.txt
 
 celeritas/
@@ -67,4 +68,3 @@ ctest --test-dir build --output-on-failure
 - Unified backend registration mechanism (CPU/CUDA/OpenCL...)
 - Graph-level scheduling and execution
 - Quantization and performance optimizations
-

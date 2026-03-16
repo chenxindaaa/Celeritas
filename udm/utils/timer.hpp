@@ -19,26 +19,26 @@ public:
     ~Timer();
 
 public:
-    void start_cpu();
-    void start_gpu();
-    void stop_cpu();
-    void stop_gpu();
+    void startCpu();
+    void startGpu();
+    void stopCpu();
+    void stopGpu();
 
     template <typename span>
-    void duration_cpu(std::string msg);
+    void durationCpu(std::string msg);
 
-    void duration_gpu(std::string msg);
+    void durationGpu(std::string msg);
 
 private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> _cStart;
-    std::chrono::time_point<std::chrono::high_resolution_clock> _cStop;
-    cudaEvent_t _gStart;
-    cudaEvent_t _gStop;
-    float _timeElasped;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_cpuStart;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_cpuStop;
+    cudaEvent_t m_gpuStart;
+    cudaEvent_t m_gpuStop;
+    float m_timeElapsed;
 };
 
 template <typename span>
-void Timer::duration_cpu(std::string msg){
+void Timer::durationCpu(std::string msg){
     std::string str;
 
     if(std::is_same<span, s>::value) { str = "s"; }
@@ -46,7 +46,7 @@ void Timer::duration_cpu(std::string msg){
     else if(std::is_same<span, us>::value) { str = "us"; }
     else if(std::is_same<span, ns>::value) { str = "ns"; }
 
-    std::chrono::duration<double, span> time = _cStop - _cStart;
+    std::chrono::duration<double, span> time = m_cpuStop - m_cpuStart;
     LOG("%-40s uses %.6lf %s", msg.c_str(), time.count(), str.c_str());
 }
 }  // namespace eUTIL

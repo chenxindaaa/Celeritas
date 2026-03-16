@@ -3,15 +3,17 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+
 #include <cuda_runtime_api.h>
 
+#include "core/Tensor.h"
+#include "memory/MemoryMgr.h"
 #include "utils/utils.hpp"
-#include "tensor/tensor.h"
 
 namespace eUTIL {
 
 template <typename T>
-std::size_t Tensor<T>::CalcSize(std::initializer_list<std::size_t> dims) {
+std::size_t Tensor<T>::calcSize(std::initializer_list<std::size_t> dims) {
     if (dims.size() == 0) {
         throw std::invalid_argument("Tensor dims cannot be empty");
     }
@@ -28,7 +30,7 @@ std::size_t Tensor<T>::CalcSize(std::initializer_list<std::size_t> dims) {
 
 template <typename T>
 Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
-    : m_size(CalcSize(dims)),
+    : m_size(calcSize(dims)),
       m_dims(dims),
       m_device(device),
       m_dtype(DTypeTrait<T>::kValue),
@@ -41,12 +43,13 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
     auto& mgr = MemoryMgr::getInstance();
     switch (m_device) {
         case DeviceType::kCpu:
-            m_data = AllocateTyped<T>(mgr.GetCpuPool(), m_size);
+            m_data = mgr.allocateTyped<T>(DeviceType::kCpu, nullptr, m_size);
             break;
         case DeviceType::kCuda:
-            m_data = AllocateTyped<T>(mgr.GetCudaPool(), m_size);
+            m_data = mgr.allocateTyped<T>(DeviceType::kCuda, nullptr, m_size);
             break;
         case DeviceType::kUnknown:
+        case DeviceType::kNumDeviceTypes:
         default:
             throw std::runtime_error("Unsupported device type");
     }
@@ -56,11 +59,11 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
 
 template <typename T>
 Tensor<T>::~Tensor() noexcept {
-    ReleaseOwnership();
+    releaseOwnership();
 }
 
 template <typename T>
-void Tensor<T>::AcquireFrom(const Tensor& other) {
+void Tensor<T>::acquireFrom(const Tensor& other) {
     m_size = other.m_size;
     m_dims = other.m_dims;
     m_device = other.m_device;
@@ -73,13 +76,13 @@ void Tensor<T>::AcquireFrom(const Tensor& other) {
 }
 
 template <typename T>
-void Tensor<T>::ReleaseOwnership() noexcept {
+void Tensor<T>::releaseOwnership() noexcept {
     if (!m_refCount) {
         return;
     }
 
     if (--(*m_refCount) == 0) {
-        Release();
+        release();
         delete m_refCount;
     }
 
@@ -99,7 +102,7 @@ Tensor<T>::Tensor(const Tensor& other)
       m_dtype(DType::kUnknown),
       m_data(nullptr),
       m_refCount(nullptr) {
-    AcquireFrom(other);
+    acquireFrom(other);
 }
 
 template <typename T>
@@ -110,8 +113,8 @@ Tensor<T>& Tensor<T>::operator=(const Tensor& other) {
 
     // Acquire first for strong exception safety.
     Tensor temp(other);
-    ReleaseOwnership();
-    AcquireFrom(temp);
+    releaseOwnership();
+    acquireFrom(temp);
     return *this;
 }
 
@@ -137,7 +140,7 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept {
         return *this;
     }
 
-    ReleaseOwnership();
+    releaseOwnership();
     m_size = other.m_size;
     m_dims = std::move(other.m_dims);
     m_device = other.m_device;
@@ -169,7 +172,7 @@ Tensor<T>& Tensor<T>::cpu() {
     }
 
     auto& mgr = MemoryMgr::getInstance();
-    T* hostData = AllocateTyped<T>(mgr.GetCpuPool(), m_size);
+    T* hostData = mgr.allocateTyped<T>(DeviceType::kCpu, nullptr, m_size);
     try {
         const cudaError_t err =
             cudaMemcpy(hostData, m_data, sizeof(T) * m_size, cudaMemcpyDeviceToHost);
@@ -178,14 +181,14 @@ Tensor<T>& Tensor<T>::cpu() {
                                      cudaGetErrorString(err));
         }
     } catch (...) {
-        DeallocateTyped<T>(mgr.GetCpuPool(), hostData, m_size);
+        mgr.releaseTyped<T>(DeviceType::kCpu, hostData, m_size);
         throw;
     }
 
     const std::size_t originalSize = m_size;
     const std::vector<std::size_t> originalDims = m_dims;
     const DType originalDType = m_dtype;
-    ReleaseOwnership();
+    releaseOwnership();
     m_data = hostData;
     m_size = originalSize;
     m_dims = originalDims;
@@ -210,7 +213,7 @@ Tensor<T>& Tensor<T>::cuda() {
     }
 
     auto& mgr = MemoryMgr::getInstance();
-    T* deviceData = AllocateTyped<T>(mgr.GetCudaPool(), m_size);
+    T* deviceData = mgr.allocateTyped<T>(DeviceType::kCuda, nullptr, m_size);
     try {
         const cudaError_t err =
             cudaMemcpy(deviceData, m_data, sizeof(T) * m_size, cudaMemcpyHostToDevice);
@@ -219,14 +222,14 @@ Tensor<T>& Tensor<T>::cuda() {
                                      cudaGetErrorString(err));
         }
     } catch (...) {
-        DeallocateTyped<T>(mgr.GetCudaPool(), deviceData, m_size);
+        mgr.releaseTyped<T>(DeviceType::kCuda, deviceData, m_size);
         throw;
     }
 
     const std::size_t originalSize = m_size;
     const std::vector<std::size_t> originalDims = m_dims;
     const DType originalDType = m_dtype;
-    ReleaseOwnership();
+    releaseOwnership();
     m_data = deviceData;
     m_size = originalSize;
     m_dims = originalDims;
@@ -237,7 +240,7 @@ Tensor<T>& Tensor<T>::cuda() {
 }
 
 template <typename T>
-void Tensor<T>::Release() noexcept {
+void Tensor<T>::release() noexcept {
     if (m_data == nullptr) {
         return;
     }
@@ -245,9 +248,9 @@ void Tensor<T>::Release() noexcept {
     try {
         auto& mgr = MemoryMgr::getInstance();
         if (m_device == DeviceType::kCpu) {
-            DeallocateTyped<T>(mgr.GetCpuPool(), m_data, m_size);
+            mgr.releaseTyped<T>(DeviceType::kCpu, m_data, m_size);
         } else if (m_device == DeviceType::kCuda) {
-            DeallocateTyped<T>(mgr.GetCudaPool(), m_data, m_size);
+            mgr.releaseTyped<T>(DeviceType::kCuda, m_data, m_size);
         } else {
             // kUnknown should never own memory.
         }

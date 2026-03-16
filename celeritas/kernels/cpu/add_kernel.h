@@ -1,7 +1,7 @@
 #pragma once
 #include <armadillo>
 
-#include "baseutil/tensor/tensor.h"
+#include "udm/core/Tensor.h"
 
 namespace eCEL {
 template<typename T>
@@ -22,3 +22,4 @@ void add_kernel_cpu(const eUTIL::Tensor<T>& input1, const eUTIL::Tensor<T>& inpu
     output_vec = input_vec1 + input_vec2;
 }
 }  // namespace eCEL
+

@@ -1,5 +1,5 @@
 #include <base/cuda_config.h>
-#include <tensor/tensor.h>
+#include <core/Tensor.h>
 #include <cfloat>
 #include <cub/cub.cuh>
 #include "mha_kernel.cuh"
@@ -61,15 +61,13 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
   float scale = 1.f / sqrtf(float(head_size));
   float* query_head = query + head * head_size;
 
-  // 预加载query到共享内存
-  for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
+  // 预加载query到共享内�?  for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
     s_query_head[i] = query_head[i];
   }
   __syncthreads();
 
   float* score_head = score_ptr + head * seq_len;
-  // head当前的注意力头索引，kv_mul用于gqa，head_size表示一个自注意力头的维度
-  // kv_dim = head_size * head_num，多头自注意力情况下的key,value 维度
+  // head当前的注意力头索引，kv_mul用于gqa，head_size表示一个自注意力头的维�?  // kv_dim = head_size * head_num，多头自注意力情况下的key,value 维度
   // kv_dim = head_size * head_num / kv_num，GQA情况下的key,value 维度
   int head_offset = (head / kv_mul) * head_size;
   // 计算自注意力分数

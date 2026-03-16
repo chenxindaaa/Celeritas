@@ -2,7 +2,7 @@
 #include <cuda_runtime_api.h>
 #include <utility>
 
-#include "baseutil/tensor/tensor.h"
+#include "udm/core/Tensor.h"
 
 using eUTIL::DeviceType;
 using eUTIL::DType;
@@ -145,3 +145,5 @@ TEST(test_tensor, tensor_cuda_breaks_cpu_sharing) {
     EXPECT_EQ(cpuA.useCount(), 1);
     EXPECT_EQ(cpuB.useCount(), 1);
 }
+
+
