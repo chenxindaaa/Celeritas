@@ -1,12 +1,25 @@
-#ifndef RMSNORM_KERNEL_CU_CUH
-#define RMSNORM_KERNEL_CU_CUH
-#include <core/Tensor.h>
-namespace kernel {
-void rmsnorm_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
-                       const tensor::Tensor& output, void* stream = nullptr);
+#pragma once
 
-void rmsnorm_kernel_cu_dim(const tensor::Tensor& input, const tensor::Tensor& weight,
-                           const tensor::Tensor& output, int32_t dim, void* stream = nullptr);
-}  // namespace kernel
-#endif  // RMSNORM_KERNEL_CU_CUH
+#include "udm/core/Tensor.h"
 
+namespace eCEL {
+
+
+template<typename T>
+void rmsKernelCu(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weight,
+                 eUTIL::Tensor<T>& output, void* stream = nullptr)
+{
+    return;
+}
+
+template<>
+void rmsKernelCu(const eUTIL::Tensor<float>& input, const eUTIL::Tensor<float>& weight,
+                 eUTIL::Tensor<float>& output, void* stream);
+
+// template<typename T>
+// void rmsKernelCuDim(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weight,
+//                     eUTIL::Tensor<T>& output, int32_t dim, void* stream = nullptr)
+// {
+//     return false;
+// }
+}  // namespace eCEL

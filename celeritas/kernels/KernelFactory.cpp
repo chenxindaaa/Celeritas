@@ -10,4 +10,8 @@ EmbDispatcher KernelFactory::getEmbKernel() {
     return EmbDispatcher(OpType::kEmb);
 }
 
+RmsDispatcher KernelFactory::getRmsKernel() {
+    return RmsDispatcher(OpType::kRms);
+}
+
 }  // namespace eCEL

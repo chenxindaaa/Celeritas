@@ -10,6 +10,7 @@ public:
 
     static AddDispatcher getAddKernel();
     static EmbDispatcher getEmbKernel();
+    static RmsDispatcher getRmsKernel();
 };
 
 }  // namespace eCEL

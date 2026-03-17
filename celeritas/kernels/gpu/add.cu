@@ -8,7 +8,7 @@
 
 namespace {
 
-__global__ void AddKernel(const int* a, const int* b, int* o, int n) {
+__global__ void addKernel(const int* a, const int* b, int* o, int n) {
     const int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < n) {
         o[idx] = a[idx] + b[idx];
@@ -36,12 +36,18 @@ void add_kernel_cu(const eUTIL::Tensor<int>& input1,
         throw std::invalid_argument("input/output size mismatch in add_kernel_cu");
     }
 
-    constexpr int32_t thread_num = 512;
-    const int32_t block_num = (size + thread_num - 1) / thread_num;
-    cudaStream_t cuda_stream = static_cast<cudaStream_t>(stream);
-    AddKernel<<<block_num, thread_num, 0, cuda_stream>>>(input1.data(), input2.data(),
-                                                          output.data(), size);
-    CheckCuda(cudaPeekAtLastError(), "AddKernel launch");
+    constexpr int32_t blockSize = 512;
+    const int32_t gridSize = (size + blockSize - 1) / blockSize;
+    if (stream) {
+        cudaStream_t cuda_stream = static_cast<cudaStream_t>(stream);
+        addKernel<<<gridSize, blockSize, 0, cuda_stream>>>(input1.data(), input2.data(),
+                                                           output.data(), size);
+    }
+    else {
+        addKernel<<<gridSize, blockSize>>>(input1.data(), input2.data(),
+                                           output.data(), size);
+    }
+    CheckCuda(cudaPeekAtLastError(), "addKernel launch");
 }
 
 }  // namespace eCEL

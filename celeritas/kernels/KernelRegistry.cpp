@@ -1,6 +1,8 @@
 #include "cpu/add_kernel.h"
-#include "cpu/emb_kernel.h"
 #include "gpu/add.cuh"
+#include "cpu/emb_kernel.h"
+#include "cpu/rmsnorm_kernel.h"
+#include "gpu/rmsnorm_kernel.cuh"
 #include "KernelRegistry.h"
 
 namespace eCEL {
@@ -30,6 +32,16 @@ void KernelRegistry::initRegistryTable()
                                 eUTIL::DeviceType::kCpu,
                                 eUTIL::DType::kFloat32,
                                 embKernelCpu<float>);
+
+    // RMSNorm
+    registerKernel<RmsKernelFn<float>>(OpType::kRms,
+                                eUTIL::DeviceType::kCpu,
+                                eUTIL::DType::kFloat32,
+                                rmsKernelCpu<float>);
+    registerKernel<RmsKernelFn<float>>(OpType::kRms,
+                                eUTIL::DeviceType::kCuda,
+                                eUTIL::DType::kFloat32,
+                                rmsKernelCu<float>);
 }
 
 }  // namespace eCEL

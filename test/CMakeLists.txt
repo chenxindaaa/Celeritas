@@ -38,6 +38,7 @@ add_executable(test_celeritas
   testUtil/testPool.cpp
   testUtil/testTensor.cpp
   testOperation/testAdd.cpp
+  testOperation/testRms.cpp
 )
 
 target_link_libraries(test_celeritas

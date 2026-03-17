@@ -7,11 +7,39 @@
 #include <type_traits>
 #include <string>
 
-#include "OpType.h"
 #include "udm/core/Tensor.h"
 #include "udm/designPattren/Singleton.h"
 
 namespace eCEL {
+
+enum class OpType {
+    kUnknown,
+    kAdd,
+    kEmb,
+    kRms,
+    kMatmul,
+    kMha,
+    kNumOpTypes,
+};
+
+inline std::string opTypeName(OpType opType) {
+    switch (opType) {
+        case OpType::kAdd:
+            return "add";
+        case OpType::kEmb:
+            return "emb";
+        case OpType::kRms:
+            return "rms";
+        case OpType::kMatmul:
+            return "matmul";
+        case OpType::kMha:
+            return "mha";
+        case OpType::kUnknown:
+        case OpType::kNumOpTypes:
+        default:
+            return "unknown";
+    }
+}
 
 template <typename T>
 using AddKernelFn = void (*)(const eUTIL::Tensor<T>& input1,
@@ -25,6 +53,12 @@ using EmbKernelFn = void (*)(const eUTIL::Tensor<T>& input,
                              eUTIL::Tensor<T>& output,
                              int32_t vocabSize,
                              void* stream);
+
+template <typename T>
+using RmsKernelFn = void (*)(const eUTIL::Tensor<T>& input,
+                             const eUTIL::Tensor<T>& weight,
+                             eUTIL::Tensor<T>& output,
+                             void* stream);                        
 
 class KernelRegistry final : public Singleton<KernelRegistry> {
 friend class Singleton<KernelRegistry>;

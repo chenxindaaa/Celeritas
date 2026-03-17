@@ -47,7 +47,7 @@ protected:
     }
 
 protected:
-    OpType m_opType;
+    const OpType m_opType;
     mutable eUTIL::DeviceType m_device;
     mutable eUTIL::DType m_dtype;
 };
@@ -81,5 +81,18 @@ public:
     }
 };
 
+class RmsDispatcher final : public Dispatcher {
+public:
+    RmsDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(const eUTIL::Tensor<T>& input,
+                    const eUTIL::Tensor<T>& weight,
+                    eUTIL::Tensor<T>& output,
+                    void* stream = nullptr) const {
+        check<T>(input, weight, output);
+        auto kernel = KernelRegistry::getInstance().lookup<RmsKernelFn<T>>(m_opType, m_device, m_dtype);
+        kernel(input, weight, output, stream);
+    }
+};
 
 }  // namespace eCEL
