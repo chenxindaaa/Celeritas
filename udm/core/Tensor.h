@@ -37,7 +37,7 @@ public:
 
     // Convert in-place to CPU/CUDA storage. If already on target device, no-op.
     Tensor& cpu();
-    Tensor& cuda();
+    Tensor& cuda(cudaStream_t stream = nullptr);
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }

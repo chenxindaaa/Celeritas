@@ -1,2 +1,6 @@
 build/
 .VSCodeCounter/
+docs/
+tmp/
+models/
+**/__pycache__/

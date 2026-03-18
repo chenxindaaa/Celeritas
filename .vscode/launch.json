@@ -40,6 +40,14 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Python",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": ["/home/cxd/Celeritas/tmp/stories15M.bin", "--checkpoint", "/home/cxd/Celeritas/models/stories15M.pt"],
+            "console": "integratedTerminal"
         }
     ]
 }

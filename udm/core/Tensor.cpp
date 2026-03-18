@@ -43,10 +43,10 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
     auto& mgr = MemoryMgr::getInstance();
     switch (m_device) {
         case DeviceType::kCpu:
-            m_data = mgr.allocateTyped<T>(DeviceType::kCpu, nullptr, m_size);
+            m_data = mgr.allocateTyped<T>(DeviceType::kCpu, m_size);
             break;
         case DeviceType::kCuda:
-            m_data = mgr.allocateTyped<T>(DeviceType::kCuda, nullptr, m_size);
+            m_data = mgr.allocateTyped<T>(DeviceType::kCuda, m_size);
             break;
         case DeviceType::kUnknown:
         case DeviceType::kNumDeviceTypes:
@@ -172,14 +172,9 @@ Tensor<T>& Tensor<T>::cpu() {
     }
 
     auto& mgr = MemoryMgr::getInstance();
-    T* hostData = mgr.allocateTyped<T>(DeviceType::kCpu, nullptr, m_size);
+    T* hostData = mgr.allocateTyped<T>(DeviceType::kCpu, m_size);
     try {
-        const cudaError_t err =
-            cudaMemcpy(hostData, m_data, sizeof(T) * m_size, cudaMemcpyDeviceToHost);
-        if (err != cudaSuccess) {
-            throw std::runtime_error(std::string("cudaMemcpy(DeviceToHost) failed: ") +
-                                     cudaGetErrorString(err));
-        }
+        mgr.memcpy(DeviceType::kCpu, hostData, m_device, m_data, sizeof(T) * m_size);
     } catch (...) {
         mgr.releaseTyped<T>(DeviceType::kCpu, hostData, m_size);
         throw;
@@ -199,7 +194,7 @@ Tensor<T>& Tensor<T>::cpu() {
 }
 
 template <typename T>
-Tensor<T>& Tensor<T>::cuda() {
+Tensor<T>& Tensor<T>::cuda(cudaStream_t stream) {
     if (m_device == DeviceType::kUnknown) {
         throw std::runtime_error("Cannot convert tensor with kUnknown device");
     }
@@ -213,14 +208,9 @@ Tensor<T>& Tensor<T>::cuda() {
     }
 
     auto& mgr = MemoryMgr::getInstance();
-    T* deviceData = mgr.allocateTyped<T>(DeviceType::kCuda, nullptr, m_size);
+    T* deviceData = mgr.allocateTyped<T>(DeviceType::kCuda, m_size);
     try {
-        const cudaError_t err =
-            cudaMemcpy(deviceData, m_data, sizeof(T) * m_size, cudaMemcpyHostToDevice);
-        if (err != cudaSuccess) {
-            throw std::runtime_error(std::string("cudaMemcpy(HostToDevice) failed: ") +
-                                     cudaGetErrorString(err));
-        }
+        mgr.memcpy(DeviceType::kCuda, deviceData, m_device, m_data, sizeof(T) * m_size, stream);
     } catch (...) {
         mgr.releaseTyped<T>(DeviceType::kCuda, deviceData, m_size);
         throw;

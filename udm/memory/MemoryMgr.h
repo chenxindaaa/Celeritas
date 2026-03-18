@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cuda_runtime_api.h>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -21,16 +22,17 @@ public:
     MemoryMgr& operator=(const MemoryMgr&) = delete;
 
     void shutdown();
+    void memcpy(DeviceType dstDevice,
+                void* dst,
+                DeviceType srcDevice,
+                const void* src,
+                std::size_t bytes,
+                cudaStream_t stream = nullptr);
 
     template <typename T>
-    T* allocateTyped(DeviceType device, T* ptr = nullptr, std::size_t count = 1) {
+    T* allocateTyped(DeviceType device, std::size_t count = 1) {
         static_assert(DTypeTrait<T>::kValue != DType::kUnknown,
                       "allocateTyped only supports DTypeTrait-supported types");
-
-        if (ptr != nullptr) {
-            releaseTyped(device, ptr, count);
-            return nullptr;
-        }
 
         if (count == 0) {
             return nullptr;

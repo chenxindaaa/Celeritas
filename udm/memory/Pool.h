@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
@@ -32,9 +33,13 @@ protected:
     void* allocateBytes(std::size_t bytes);
     void deallocateBytes(void* ptr, std::size_t bytes);
     void clearCachedBlocks();
+    void trimCachedBlocks(std::size_t targetCachedBytes);
 
     std::size_t cachedBlockCount() const;
     std::size_t cachedBytes() const;
+
+    virtual std::size_t cacheLimitBytes() const;
+    virtual std::size_t cacheTrimTargetBytes() const;
 
     virtual void* allocateRaw(std::size_t bytes) = 0;
     virtual void deallocateRaw(void* ptr) = 0;
@@ -55,6 +60,7 @@ public:
 private:
     void* allocateRaw(std::size_t bytes) override;
     void deallocateRaw(void* ptr) override;
+    std::size_t cacheLimitBytes() const override;
 };
 
 class CudaMemoryPool final : public MemoryPool {
@@ -67,6 +73,7 @@ public:
 private:
     void* allocateRaw(std::size_t bytes) override;
     void deallocateRaw(void* ptr) override;
+    std::size_t cacheLimitBytes() const override;
 };
 
 }  // namespace eUTIL
