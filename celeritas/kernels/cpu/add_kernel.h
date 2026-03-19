@@ -4,10 +4,12 @@
 #include "udm/core/Tensor.h"
 
 namespace eCEL {
+
 template<typename T>
 void add_kernel_cpu(const eUTIL::Tensor<T>& input1, const eUTIL::Tensor<T>& input2,
                     eUTIL::Tensor<T>& output, void* stream = nullptr)
 {
+    (void)stream;
     // UNUSED(stream);
     // CHECK_EQ(input1.empty(), false);
     // CHECK_EQ(input2.empty(), false);
@@ -21,5 +23,5 @@ void add_kernel_cpu(const eUTIL::Tensor<T>& input1, const eUTIL::Tensor<T>& inpu
     arma::Col<T> output_vec(output.data(), output.size(), false, true);
     output_vec = input_vec1 + input_vec2;
 }
-}  // namespace eCEL
 
+}  // namespace eCEL

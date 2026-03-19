@@ -1,16 +1,27 @@
-#ifndef MATMUL_KERNEL_CU_CUH
-#define MATMUL_KERNEL_CU_CUH
-#include "../kernels_interface.h"
-#include "core/Tensor.h"
-namespace kernel {
-void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
-                      const tensor::Tensor& output, float scale = 1.f,
-                      const CudaConfig* config = nullptr);
+#pragma once
 
-void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& weight,
-                            const tensor::Tensor& output, int32_t group_size,
-                            const tensor::Tensor& scale, const CudaConfig* config = nullptr);
-}  // namespace kernel
+#include "udm/common/cudaConfig.h"
+#include "udm/core/Tensor.h"
 
-#endif  // MATMUL_KERNEL_CU_CUH
+namespace eCEL {
+
+template<typename T>
+void matmulKernelCu(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weight,
+                    eUTIL::Tensor<T>& output, const float scale = 1.f,
+                    const eUTIL::CudaConfig* config = nullptr)
+{
+    (void)input;
+    (void)weight;
+    (void)output;
+    (void)scale;
+    (void)config;
+    return;
+}
+
+template<>
+void matmulKernelCu(const eUTIL::Tensor<float>& input, const eUTIL::Tensor<float>& weight,
+                    eUTIL::Tensor<float>& output, const float scale,
+                    const eUTIL::CudaConfig* config);
+
+}  // namespace eCEL
 

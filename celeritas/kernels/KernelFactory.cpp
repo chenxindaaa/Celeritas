@@ -14,4 +14,8 @@ RmsDispatcher KernelFactory::getRmsKernel() {
     return RmsDispatcher(OpType::kRms);
 }
 
+MatmulDispatcher KernelFactory::getMatmulKernel() {
+    return MatmulDispatcher(OpType::kMatmul);
+}
+
 }  // namespace eCEL

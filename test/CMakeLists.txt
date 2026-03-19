@@ -39,6 +39,9 @@ add_executable(test_celeritas
   testUtil/testTensor.cpp
   testUtil/testSave.cpp
   testOperation/testAdd.cpp
+  testOperation/testEmb.cpp
+  testOperation/testLayer.cpp
+  testOperation/testMatmul.cpp
   testOperation/testRms.cpp
 )
 

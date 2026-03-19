@@ -1,6 +1,6 @@
+#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <sys/mman.h>
-#include <fcntl.h>
 
 #include "celeritas/models/config.h"
 
@@ -25,28 +25,29 @@ TEST(test_load, load_model_config) {
     ASSERT_EQ(config.seq_len, 256);
 }
 
-// TEST(test_load, load_model_weight) {
-//   std::string model_path = "./tmp/test.bin";
-//   int32_t fd = open(model_path.data(), O_RDONLY);
-//   ASSERT_NE(fd, -1);
+TEST(test_load, load_model_weight) {
+    std::string model_path = "/home/cxd/Celeritas/tmp/test.bin";
+    int32_t fd = open(model_path.data(), O_RDONLY);
+    ASSERT_NE(fd, -1);
 
-//   FILE* file = fopen(model_path.data(), "rb");
-//   ASSERT_NE(file, nullptr);
+    FILE* file = fopen(model_path.data(), "rb");
+    ASSERT_NE(file, nullptr);
 
-//   auto config = model::ModelConfig{};
-//   fread(&config, sizeof(model::ModelConfig), 1, file);
+    auto config = eCEL::ModelConfig{};
+    const std::size_t readCount = fread(&config, sizeof(eCEL::ModelConfig), 1, file);
+    ASSERT_EQ(readCount, 1);
 
-//   fseek(file, 0, SEEK_END);
-//   auto file_size = ftell(file);
+    fseek(file, 0, SEEK_END);
+    auto file_size = ftell(file);
 
-//   void* data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
-//   float* weight_data =
-//       reinterpret_cast<float*>(static_cast<int8_t*>(data) + sizeof(model::ModelConfig));
+    void* data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    float* weight_data =
+        reinterpret_cast<float*>(static_cast<int8_t*>(data) + sizeof(eCEL::ModelConfig));
 
-//   for (int i = 0; i < config.dim * config.hidden_dim; ++i) {
-//     ASSERT_EQ(*(weight_data + i), float(i));
-//   }
-// }
+    for (int i = 0; i < config.dim * config.hidden_dim; ++i) {
+        ASSERT_EQ(*(weight_data + i), float(i));
+    }
+}
 
 // TEST(test_load, create_matmul) {
 //   std::string model_path = "./tmp/test.bin";

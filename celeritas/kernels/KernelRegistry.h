@@ -9,6 +9,7 @@
 
 #include "udm/core/Tensor.h"
 #include "udm/designPattren/Singleton.h"
+#include "udm/common/cudaConfig.h"
 
 namespace eCEL {
 
@@ -58,7 +59,14 @@ template <typename T>
 using RmsKernelFn = void (*)(const eUTIL::Tensor<T>& input,
                              const eUTIL::Tensor<T>& weight,
                              eUTIL::Tensor<T>& output,
-                             void* stream);                        
+                             void* stream);      
+                             
+template <typename T>
+using MatmulKernelFn = void (*)(const eUTIL::Tensor<T>& input,
+                                const eUTIL::Tensor<T>& weight,
+                                eUTIL::Tensor<T>& output,
+                                const float scale,
+                                const eUTIL::CudaConfig* config);  
 
 class KernelRegistry final : public Singleton<KernelRegistry> {
 friend class Singleton<KernelRegistry>;
@@ -89,9 +97,9 @@ private:
     KernelRegistry();
     void initRegistryTable();
 
-    std::array<std::array<std::array<FnPtr, (std::size_t)(OpType::kNumOpTypes)>, 
-                                            (std::size_t)(eUTIL::DeviceType::kNumDeviceTypes)>,
-                                            (std::size_t)(eUTIL::DType::kNumDTypes)>
+    std::array<std::array<std::array<FnPtr, (std::size_t)(eUTIL::DType::kNumDTypes)>,
+                          (std::size_t)(eUTIL::DeviceType::kNumDeviceTypes)>,
+               (std::size_t)(OpType::kNumOpTypes)>
         m_regTable{};
 };
 

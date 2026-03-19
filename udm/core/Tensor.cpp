@@ -1,4 +1,3 @@
-#include <functional>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -35,7 +34,7 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
       m_device(device),
       m_dtype(DTypeTrait<T>::kValue),
       m_data(nullptr),
-      m_refCount(nullptr) {
+      m_control(nullptr) {
     if (m_device == DeviceType::kUnknown) {
         throw std::invalid_argument("Tensor device cannot be kUnknown");
     }
@@ -54,7 +53,28 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
             throw std::runtime_error("Unsupported device type");
     }
 
-    m_refCount = new std::size_t(1);
+    m_control = new ControlBlock{1, false};
+}
+
+template <typename T>
+Tensor<T>::Tensor(DeviceType device,
+                  std::initializer_list<std::size_t> dims,
+                  T* data,
+                  bool isExternal)
+    : m_size(calcSize(dims)),
+      m_dims(dims),
+      m_device(device),
+      m_dtype(DTypeTrait<T>::kValue),
+      m_data(data),
+      m_control(nullptr) {
+    if (m_device == DeviceType::kUnknown) {
+        throw std::invalid_argument("Tensor device cannot be kUnknown");
+    }
+    if (m_data == nullptr) {
+        throw std::invalid_argument("Tensor external data cannot be null");
+    }
+
+    m_control = new ControlBlock{1, isExternal};
 }
 
 template <typename T>
@@ -69,24 +89,24 @@ void Tensor<T>::acquireFrom(const Tensor& other) {
     m_device = other.m_device;
     m_dtype = other.m_dtype;
     m_data = other.m_data;
-    m_refCount = other.m_refCount;
-    if (m_refCount) {
-        ++(*m_refCount);
+    m_control = other.m_control;
+    if (m_control) {
+        ++m_control->refCount;
     }
 }
 
 template <typename T>
 void Tensor<T>::releaseOwnership() noexcept {
-    if (!m_refCount) {
+    if (!m_control) {
         return;
     }
 
-    if (--(*m_refCount) == 0) {
+    if (--m_control->refCount == 0) {
         release();
-        delete m_refCount;
+        delete m_control;
     }
 
-    m_refCount = nullptr;
+    m_control = nullptr;
     m_data = nullptr;
     m_size = 0;
     m_dims.clear();
@@ -101,7 +121,7 @@ Tensor<T>::Tensor(const Tensor& other)
       m_device(DeviceType::kUnknown),
       m_dtype(DType::kUnknown),
       m_data(nullptr),
-      m_refCount(nullptr) {
+      m_control(nullptr) {
     acquireFrom(other);
 }
 
@@ -125,13 +145,13 @@ Tensor<T>::Tensor(Tensor&& other) noexcept
       m_device(other.m_device),
       m_dtype(other.m_dtype),
       m_data(other.m_data),
-      m_refCount(other.m_refCount) {
+      m_control(other.m_control) {
     other.m_size = 0;
     other.m_dims.clear();
     other.m_device = DeviceType::kUnknown;
     other.m_dtype = DType::kUnknown;
     other.m_data = nullptr;
-    other.m_refCount = nullptr;
+    other.m_control = nullptr;
 }
 
 template <typename T>
@@ -146,14 +166,14 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept {
     m_device = other.m_device;
     m_dtype = other.m_dtype;
     m_data = other.m_data;
-    m_refCount = other.m_refCount;
+    m_control = other.m_control;
 
     other.m_size = 0;
     other.m_dims.clear();
     other.m_device = DeviceType::kUnknown;
     other.m_dtype = DType::kUnknown;
     other.m_data = nullptr;
-    other.m_refCount = nullptr;
+    other.m_control = nullptr;
     return *this;
 }
 
@@ -189,7 +209,7 @@ Tensor<T>& Tensor<T>::cpu() {
     m_dims = originalDims;
     m_device = DeviceType::kCpu;
     m_dtype = originalDType;
-    m_refCount = new std::size_t(1);
+    m_control = new ControlBlock{1, false};
     return *this;
 }
 
@@ -225,13 +245,13 @@ Tensor<T>& Tensor<T>::cuda(cudaStream_t stream) {
     m_dims = originalDims;
     m_device = DeviceType::kCuda;
     m_dtype = originalDType;
-    m_refCount = new std::size_t(1);
+    m_control = new ControlBlock{1, false};
     return *this;
 }
 
 template <typename T>
 void Tensor<T>::release() noexcept {
-    if (m_data == nullptr) {
+    if (m_data == nullptr || m_control == nullptr || m_control->isExternal) {
         return;
     }
 

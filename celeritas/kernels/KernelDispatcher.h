@@ -95,4 +95,19 @@ public:
     }
 };
 
+class MatmulDispatcher final : public Dispatcher {
+public:
+    MatmulDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(const eUTIL::Tensor<T>& input,
+                    const eUTIL::Tensor<T>& weight,
+                    eUTIL::Tensor<T>& output,
+                    const float scale,
+                    void* stream = nullptr) const {
+        check<T>(input, weight, output);
+        auto kernel = KernelRegistry::getInstance().lookup<MatmulKernelFn<T>>(m_opType, m_device, m_dtype);
+        kernel(input, weight, output, scale, stream);
+    }
+};
+
 }  // namespace eCEL

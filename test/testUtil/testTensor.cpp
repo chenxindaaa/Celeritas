@@ -146,4 +146,21 @@ TEST(test_tensor, tensor_cuda_breaks_cpu_sharing) {
     EXPECT_EQ(cpuB.useCount(), 1);
 }
 
+TEST(test_tensor, tensor_external_data_is_non_owning) {
+    constexpr std::size_t kCount = 8;
+    int* raw = new int[kCount];
+
+    {
+        Tensor<int> a(DeviceType::kCpu, {kCount}, raw, true);
+        Tensor<int> b = a;
+
+        EXPECT_EQ(a.data(), raw);
+        EXPECT_EQ(b.data(), raw);
+        EXPECT_EQ(a.useCount(), 2);
+        EXPECT_EQ(b.useCount(), 2);
+    }
+
+    delete[] raw;
+}
+
 
