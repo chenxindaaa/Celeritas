@@ -146,6 +146,51 @@ TEST(test_tensor, tensor_cuda_breaks_cpu_sharing) {
     EXPECT_EQ(cpuB.useCount(), 1);
 }
 
+TEST(test_tensor, tensor_clone_creates_deep_copy_on_cpu) {
+    Tensor<int> source(DeviceType::kCpu, 2, 3);
+    for (int i = 0; i < 6; ++i) {
+        source[i] = i + 1;
+    }
+
+    Tensor<int> cloned = source.clone();
+
+    EXPECT_NE(cloned.data(), source.data());
+    EXPECT_EQ(cloned.device(), DeviceType::kCpu);
+    EXPECT_EQ(cloned.dims(), source.dims());
+    EXPECT_EQ(cloned.useCount(), 1);
+    for (int i = 0; i < 6; ++i) {
+        EXPECT_EQ(cloned[i], source[i]);
+    }
+
+    source[0] = 99;
+    EXPECT_EQ(cloned[0], 1);
+}
+
+TEST(test_tensor, tensor_clone_preserves_cuda_data) {
+    int deviceCount = 0;
+    if (cudaGetDeviceCount(&deviceCount) != cudaSuccess || deviceCount <= 0) {
+        GTEST_SKIP() << "CUDA device not available";
+    }
+
+    Tensor<float> cpu(DeviceType::kCpu, 4);
+    for (int i = 0; i < 4; ++i) {
+        cpu[i] = static_cast<float>(i) + 0.5f;
+    }
+
+    Tensor<float> gpu = cpu.cuda();
+    Tensor<float> gpuClone = gpu.clone();
+
+    EXPECT_NE(gpuClone.data(), gpu.data());
+    EXPECT_EQ(gpuClone.device(), DeviceType::kCuda);
+    EXPECT_EQ(gpuClone.dims(), gpu.dims());
+    EXPECT_EQ(gpuClone.useCount(), 1);
+
+    gpuClone.cpu();
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(gpuClone[i], cpu[i]);
+    }
+}
+
 TEST(test_tensor, tensor_external_data_is_non_owning) {
     constexpr std::size_t kCount = 8;
     int* raw = new int[kCount];

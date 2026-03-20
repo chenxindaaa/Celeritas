@@ -46,7 +46,14 @@ protected:
         (checkOne(rest), ...);
     }
 
+    template<typename KernelFn>
+    KernelFn lookup() const
+    {
+        return  m_kernelRegistry.lookup<KernelFn>(m_opType, m_device, m_dtype);
+    }
+
 protected:
+    static KernelRegistry& m_kernelRegistry;
     const OpType m_opType;
     mutable eUTIL::DeviceType m_device;
     mutable eUTIL::DType m_dtype;
@@ -61,7 +68,7 @@ public:
                     eUTIL::Tensor<T>& output,
                     void* stream = nullptr) const {
         check<T>(input1, input2, output);
-        auto kernel = KernelRegistry::getInstance().lookup<AddKernelFn<T>>(m_opType, m_device, m_dtype);
+        auto kernel = lookup<AddKernelFn<T>>();
         kernel(input1, input2, output, stream);
     }
 };
@@ -76,7 +83,7 @@ public:
                     int32_t vocabSize,
                     void* stream = nullptr) const {
         check<T>(input, weight, output);
-        auto kernel = KernelRegistry::getInstance().lookup<EmbKernelFn<T>>(m_opType, m_device, m_dtype);
+        auto kernel = lookup<EmbKernelFn<T>>();
         kernel(input, weight, output, vocabSize, stream);
     }
 };
@@ -90,7 +97,7 @@ public:
                     eUTIL::Tensor<T>& output,
                     void* stream = nullptr) const {
         check<T>(input, weight, output);
-        auto kernel = KernelRegistry::getInstance().lookup<RmsKernelFn<T>>(m_opType, m_device, m_dtype);
+        auto kernel = lookup<RmsKernelFn<T>>();
         kernel(input, weight, output, stream);
     }
 };
@@ -103,10 +110,10 @@ public:
                     const eUTIL::Tensor<T>& weight,
                     eUTIL::Tensor<T>& output,
                     const float scale,
-                    void* stream = nullptr) const {
+                    const eUTIL::CudaConfig* config = nullptr) const {
         check<T>(input, weight, output);
-        auto kernel = KernelRegistry::getInstance().lookup<MatmulKernelFn<T>>(m_opType, m_device, m_dtype);
-        kernel(input, weight, output, scale, stream);
+        auto kernel = lookup<MatmulKernelFn<T>>();
+        kernel(input, weight, output, scale, config);
     }
 };
 

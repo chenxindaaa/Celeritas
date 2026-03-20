@@ -13,6 +13,8 @@
 
 namespace eCEL {
 
+class Dispatcher;
+
 enum class OpType {
     kUnknown,
     kAdd,
@@ -70,8 +72,10 @@ using MatmulKernelFn = void (*)(const eUTIL::Tensor<T>& input,
 
 class KernelRegistry final : public Singleton<KernelRegistry> {
 friend class Singleton<KernelRegistry>;
-public:
+friend class Dispatcher;
+private:
     using FnPtr = void (*)();
+    KernelRegistry();
     template <typename KernelFn>
     void registerKernel(OpType opType,
                         eUTIL::DeviceType device,
@@ -92,11 +96,9 @@ public:
         }
         return reinterpret_cast<KernelFn>(fnPtr);
     }
-
-private:
-    KernelRegistry();
     void initRegistryTable();
 
+private:
     std::array<std::array<std::array<FnPtr, (std::size_t)(eUTIL::DType::kNumDTypes)>,
                           (std::size_t)(eUTIL::DeviceType::kNumDeviceTypes)>,
                (std::size_t)(OpType::kNumOpTypes)>

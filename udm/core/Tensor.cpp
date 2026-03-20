@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <numeric>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -10,6 +12,38 @@
 #include "utils/utils.hpp"
 
 namespace eUTIL {
+
+namespace {
+
+const char* deviceTypeName(DeviceType device) {
+    switch (device) {
+        case DeviceType::kCpu:
+            return "cpu";
+        case DeviceType::kCuda:
+            return "cuda";
+        case DeviceType::kUnknown:
+        case DeviceType::kNumDeviceTypes:
+        default:
+            return "unknown";
+    }
+}
+
+const char* dtypeName(DType dtype) {
+    switch (dtype) {
+        case DType::kInt32:
+            return "int32";
+        case DType::kFloat32:
+            return "float32";
+        case DType::kFloat64:
+            return "float64";
+        case DType::kUnknown:
+        case DType::kNumDTypes:
+        default:
+            return "unknown";
+    }
+}
+
+}  // namespace
 
 template <typename T>
 std::size_t Tensor<T>::calcSize(std::initializer_list<std::size_t> dims) {
@@ -55,6 +89,15 @@ Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
 
     m_control = new ControlBlock{1, false};
 }
+
+template <typename T>
+Tensor<T>::Tensor() noexcept
+    : m_size(0),
+      m_dims(),
+      m_device(DeviceType::kUnknown),
+      m_dtype(DType::kUnknown),
+      m_data(nullptr),
+      m_control(nullptr) {}
 
 template <typename T>
 Tensor<T>::Tensor(DeviceType device,
@@ -178,6 +221,39 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept {
 }
 
 template <typename T>
+Tensor<T> Tensor<T>::clone() const {
+    if (m_device == DeviceType::kUnknown) {
+        throw std::runtime_error("Cannot clone tensor with kUnknown device");
+    }
+
+    Tensor copied;
+    copied.m_size = m_size;
+    copied.m_dims = m_dims;
+    copied.m_device = m_device;
+    copied.m_dtype = m_dtype;
+
+    auto& mgr = MemoryMgr::getInstance();
+    switch (copied.m_device) {
+        case DeviceType::kCpu:
+            copied.m_data = mgr.allocateTyped<T>(DeviceType::kCpu, copied.m_size);
+            break;
+        case DeviceType::kCuda:
+            copied.m_data = mgr.allocateTyped<T>(DeviceType::kCuda, copied.m_size);
+            break;
+        case DeviceType::kUnknown:
+        case DeviceType::kNumDeviceTypes:
+        default:
+            throw std::runtime_error("Unsupported device type");
+    }
+    copied.m_control = new ControlBlock{1, false};
+
+    if (m_data != nullptr && m_size != 0) {
+        mgr.memcpy(m_device, copied.m_data, m_device, m_data, sizeof(T) * m_size);
+    }
+    return copied;
+}
+
+template <typename T>
 Tensor<T>& Tensor<T>::cpu() {
     if (m_device == DeviceType::kUnknown) {
         throw std::runtime_error("Cannot convert tensor with kUnknown device");
@@ -269,8 +345,56 @@ void Tensor<T>::release() noexcept {
     }
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor) {
+    os << "Tensor(shape=[";
+    for (std::size_t i = 0; i < tensor.dims().size(); ++i) {
+        if (i > 0) {
+            os << ", ";
+        }
+        os << tensor.dims()[i];
+    }
+    os << "], device=" << deviceTypeName(tensor.device())
+       << ", dtype=" << dtypeName(tensor.dtype())
+       << ", size=" << tensor.size()
+       << ", data=";
+
+    if (tensor.empty()) {
+        os << "[]";
+        return os << ")";
+    }
+
+    constexpr std::size_t kPreviewCount = 16;
+    if (tensor.device() == DeviceType::kUnknown) {
+        os << "<unavailable>";
+        return os << ")";
+    }
+
+    Tensor<T> printable = tensor.clone();
+    if (printable.device() == DeviceType::kCuda) {
+        printable.cpu();
+    }
+
+    os << "[";
+    const std::size_t previewCount = std::min(kPreviewCount, printable.size());
+    for (std::size_t i = 0; i < previewCount; ++i) {
+        if (i > 0) {
+            os << ", ";
+        }
+        os << printable.data()[i];
+    }
+    if (printable.size() > kPreviewCount) {
+        os << ", ...";
+    }
+    os << "])";
+    return os;
+}
+
 template class Tensor<int>;
 template class Tensor<float>;
 template class Tensor<double>;
+template std::ostream& operator<<(std::ostream& os, const Tensor<int>& tensor);
+template std::ostream& operator<<(std::ostream& os, const Tensor<float>& tensor);
+template std::ostream& operator<<(std::ostream& os, const Tensor<double>& tensor);
 
 }  // namespace eUTIL

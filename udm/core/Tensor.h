@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <iosfwd>
 #include <type_traits>
 #include <vector>
 #include <assert.h>
@@ -37,6 +38,8 @@ public:
 
     Tensor(Tensor&& other) noexcept;
     Tensor& operator=(Tensor&& other) noexcept;
+
+    Tensor clone() const;
 
     T& operator[](int idx) { return m_data[idx]; }
 
@@ -74,6 +77,7 @@ private:
         bool isExternal;
     };
 
+    Tensor() noexcept;
     void acquireFrom(const Tensor& other);
     void releaseOwnership() noexcept;
     void release() noexcept;
@@ -90,5 +94,8 @@ private:
 extern template class Tensor<int>;
 extern template class Tensor<float>;
 extern template class Tensor<double>;
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor);
 
 }  // namespace eUTIL

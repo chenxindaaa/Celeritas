@@ -210,8 +210,7 @@ public:
     Status forward() override {
         try {
             this->validateBindings();
-            auto kernel = KernelRegistry::getInstance().lookup<MatmulKernelFn<T>>(
-                OpType::kMatmul, this->device(), eUTIL::DTypeTrait<T>::kValue);
+            auto kernel = KernelFactory::getMatmulKernel();
             kernel(this->input(0), this->weight(0), this->output(0), m_scale, m_cudaConfig);
             return Status::kOk;
         } catch (const std::invalid_argument&) {

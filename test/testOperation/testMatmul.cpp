@@ -2,7 +2,7 @@
 
 #include <cuda_runtime_api.h>
 
-#include "celeritas/kernels/KernelRegistry.h"
+#include "celeritas/kernels/KernelFactory.h"
 #include "udm/core/Tensor.h"
 
 namespace {
@@ -36,8 +36,7 @@ TEST(test_matmul, matmul_cpu_matches_reference) {
     Tensor<float> output(DeviceType::kCpu, 2, 2);
     fillMatmulInputs(input, weight);
 
-    auto kernel = eCEL::KernelRegistry::getInstance().lookup<eCEL::MatmulKernelFn<float>>(
-        eCEL::OpType::kMatmul, DeviceType::kCpu, DType::kFloat32);
+    auto kernel = eCEL::KernelFactory::getMatmulKernel();
     kernel(input, weight, output, 1.f, nullptr);
 
     expectMatmulResult(output);
@@ -58,16 +57,14 @@ TEST(test_matmul, matmul_gpu_matches_cpu) {
     Tensor<float> cpuOutput(DeviceType::kCpu, 2, 2);
     fillMatmulInputs(cpuInput, cpuWeight);
 
-    auto cpuKernel = eCEL::KernelRegistry::getInstance().lookup<eCEL::MatmulKernelFn<float>>(
-        eCEL::OpType::kMatmul, DeviceType::kCpu, DType::kFloat32);
+    auto cpuKernel = eCEL::KernelFactory::getMatmulKernel();
     cpuKernel(cpuInput, cpuWeight, cpuOutput, 0.5f, nullptr);
 
     Tensor<float> gpuInput = cpuInput.cuda();
     Tensor<float> gpuWeight = cpuWeight.cuda();
     Tensor<float> gpuOutput(DeviceType::kCuda, 2, 2);
 
-    auto gpuKernel = eCEL::KernelRegistry::getInstance().lookup<eCEL::MatmulKernelFn<float>>(
-        eCEL::OpType::kMatmul, DeviceType::kCuda, DType::kFloat32);
+    auto gpuKernel = eCEL::KernelFactory::getMatmulKernel();
     gpuKernel(gpuInput, gpuWeight, gpuOutput, 0.5f, nullptr);
     ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
 

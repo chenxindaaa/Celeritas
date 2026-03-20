@@ -1,6 +1,8 @@
 #include "KernelFactory.h"
 
 namespace eCEL {
+    
+KernelRegistry& Dispatcher::m_kernelRegistry = KernelRegistry::getInstance();
 
 AddDispatcher KernelFactory::getAddKernel() {
     return AddDispatcher(OpType::kAdd);
