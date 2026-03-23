@@ -11,12 +11,6 @@ void matmulKernelCpu(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weig
                      eUTIL::Tensor<T>& output, const float scale = 1.f,
                      const eUTIL::CudaConfig* config = nullptr) {
     (void)config;
-    // CHECK(input.is_empty() == false);
-    // CHECK(weight.is_empty() == false);
-    // CHECK(output.is_empty() == false);
-    // CHECK(input.device_type() == base::DeviceType::kDeviceCPU);
-    // CHECK(weight.device_type() == base::DeviceType::kDeviceCPU);
-    // CHECK(output.device_type() == base::DeviceType::kDeviceCPU);
 
     const T* input_ptr = input.data();
     const T* weight_ptr = weight.data();

@@ -8,6 +8,8 @@ add_library(celeritas STATIC
   kernels/gpu/emb_kernel.cu
   kernels/gpu/matmul_kernel.cu
   kernels/gpu/rmsnorm_kernel.cu
+  kernels/gpu/swiglu_kernel.cu
+  kernels/gpu/mha_kernel.cu
 )
 
 target_include_directories(celeritas

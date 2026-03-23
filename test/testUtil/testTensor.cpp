@@ -177,6 +177,7 @@ TEST(test_tensor, tensor_clone_preserves_cuda_data) {
         cpu[i] = static_cast<float>(i) + 0.5f;
     }
 
+    Tensor<float> cpuRef = cpu.clone();
     Tensor<float> gpu = cpu.cuda();
     Tensor<float> gpuClone = gpu.clone();
 
@@ -187,13 +188,16 @@ TEST(test_tensor, tensor_clone_preserves_cuda_data) {
 
     gpuClone.cpu();
     for (int i = 0; i < 4; ++i) {
-        EXPECT_FLOAT_EQ(gpuClone[i], cpu[i]);
+        EXPECT_FLOAT_EQ(gpuClone[i], cpuRef[i]);
     }
 }
 
 TEST(test_tensor, tensor_external_data_is_non_owning) {
     constexpr std::size_t kCount = 8;
     int* raw = new int[kCount];
+    for (std::size_t i = 0; i < kCount; ++i) {
+        raw[i] = static_cast<int>(i);
+    }
 
     {
         Tensor<int> a(DeviceType::kCpu, {kCount}, raw, true);
@@ -203,7 +207,32 @@ TEST(test_tensor, tensor_external_data_is_non_owning) {
         EXPECT_EQ(b.data(), raw);
         EXPECT_EQ(a.useCount(), 2);
         EXPECT_EQ(b.useCount(), 2);
+        for (std::size_t i = 0; i < kCount; ++i) {
+            EXPECT_EQ(a[static_cast<int>(i)], raw[i]);
+        }
     }
+
+    delete[] raw;
+}
+
+TEST(test_tensor, tensor_non_external_data_is_deep_copied) {
+    constexpr std::size_t kCount = 8;
+    int* raw = new int[kCount];
+    for (std::size_t i = 0; i < kCount; ++i) {
+        raw[i] = static_cast<int>(i + 1);
+    }
+
+    Tensor<int> copied(DeviceType::kCpu, {kCount}, raw, false);
+
+    ASSERT_NE(copied.data(), nullptr);
+    EXPECT_NE(copied.data(), raw);
+    EXPECT_EQ(copied.useCount(), 1);
+    for (std::size_t i = 0; i < kCount; ++i) {
+        EXPECT_EQ(copied[static_cast<int>(i)], raw[i]);
+    }
+
+    raw[0] = 99;
+    EXPECT_EQ(copied[0], 1);
 
     delete[] raw;
 }

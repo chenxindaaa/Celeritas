@@ -117,4 +117,65 @@ public:
     }
 };
 
+class SwigluDispatcher final : public Dispatcher {
+public:
+    SwigluDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(const eUTIL::Tensor<T>& input1,
+                    const eUTIL::Tensor<T>& input2,
+                    eUTIL::Tensor<T>& output,
+                    void* stream = nullptr) const {
+        check<T>(input1, input2, output);
+        auto kernel = lookup<SwigluKernelFn<T>>();
+        kernel(input1, input2, output, stream);
+    }
+};
+
+class SoftmaxDispatcher final : public Dispatcher {
+public:
+    SoftmaxDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(eUTIL::Tensor<T>& input,
+                    void* stream = nullptr) const {
+        check<T>(input);
+        auto kernel = lookup<SoftmaxKernelFn<T>>();
+        kernel(input, stream);
+    }
+};
+
+class ScalesumDispatcher final : public Dispatcher {
+public:
+    ScalesumDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(const eUTIL::Tensor<T>& value, 
+                    const eUTIL::Tensor<T>& scale,
+                    eUTIL::Tensor<T>& output, 
+                    int pos, int size, int stride,
+                    void* stream = nullptr) const {
+        check<T>(value, scale, output);
+        auto kernel = lookup<ScalesumKernelFn<T>>();
+        kernel(value, scale, output, pos, size, stride, stream);
+    }
+};
+
+class MhaDispatcher final : public Dispatcher {
+public:
+    MhaDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(int32_t pos, int32_t head_num, 
+                    int32_t layer_index, int32_t seq_len, 
+                    int32_t kv_dim, int32_t kv_mul, int32_t head_size, 
+                    const eUTIL::Tensor<T>& query_tensor, 
+                    const eUTIL::Tensor<T>& key_cache_tensor, 
+                    const eUTIL::Tensor<T>& value_cache_tensor,
+                    eUTIL::Tensor<T>& score_tensor,
+                    eUTIL::Tensor<T>& mha_out,
+                    const eUTIL::CudaConfig* config = nullptr) const {
+        check<T>(query_tensor, key_cache_tensor, value_cache_tensor, score_tensor, mha_out);
+        auto kernel = lookup<MhaKernelFn<T>>();
+        kernel(pos, head_num, layer_index, seq_len, kv_dim, kv_mul, head_size, 
+               query_tensor, key_cache_tensor, value_cache_tensor, score_tensor, mha_out, config);
+    }
+};
+
 }  // namespace eCEL

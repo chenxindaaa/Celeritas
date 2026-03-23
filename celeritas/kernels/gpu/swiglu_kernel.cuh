@@ -1,9 +1,11 @@
-#ifndef SWIGLU_KERNEL_CU_CUH
-#define SWIGLU_KERNEL_CU_CUH
-#include <core/Tensor.h>
-namespace kernel {
-void swiglu_kernel_cu(const tensor::Tensor& input1, const tensor::Tensor& input2,
-                      const tensor::Tensor& output, void* stream);
-}
-#endif  // SWIGLU_KERNEL_CU_CUH
+#pragma once
+#include <udm/core/Tensor.h>
+namespace eCEL {
+template <typename T>
+void swigluKernelCu(const eUTIL::Tensor<T>& input1, const eUTIL::Tensor<T>& input2,
+                    eUTIL::Tensor<T>& output, void* stream);
 
+template <>
+void swigluKernelCu(const eUTIL::Tensor<float>& input1, const eUTIL::Tensor<float>& input2,
+                    eUTIL::Tensor<float>& output, void* stream);
+}  // namespace eCEL

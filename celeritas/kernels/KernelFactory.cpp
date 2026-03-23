@@ -20,4 +20,20 @@ MatmulDispatcher KernelFactory::getMatmulKernel() {
     return MatmulDispatcher(OpType::kMatmul);
 }
 
+SwigluDispatcher KernelFactory::getSwigluKernel() {
+    return SwigluDispatcher(OpType::kSwiglu);
+}
+
+SoftmaxDispatcher KernelFactory::getSoftmaxKernel() {
+    return SoftmaxDispatcher(OpType::kSoftmax);
+}
+
+ScalesumDispatcher KernelFactory::getScalesumKernel() {
+    return ScalesumDispatcher(OpType::kScalesum);
+}
+
+MhaDispatcher KernelFactory::getMhaKernel() {
+    return MhaDispatcher(OpType::kMha);
+}
+
 }  // namespace eCEL

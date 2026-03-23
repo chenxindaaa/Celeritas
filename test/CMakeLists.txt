@@ -8,6 +8,12 @@ if (NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type (Debug or Release)" FORCE)
 endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release)
+option(ENABLE_ASAN "Enable AddressSanitizer for C++ targets" OFF)
+
+if (ENABLE_ASAN)
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fsanitize=address;-fno-omit-frame-pointer>)
+  add_link_options(-fsanitize=address)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,7 +48,11 @@ add_executable(test_celeritas
   testOperation/testEmb.cpp
   testOperation/testLayer.cpp
   testOperation/testMatmul.cpp
+  testOperation/testMha.cpp
   testOperation/testRms.cpp
+  testOperation/testScalesum.cpp
+  testOperation/testSwiglu.cpp
+  testOperation/testSoftmap.cpp
 )
 
 target_link_libraries(test_celeritas

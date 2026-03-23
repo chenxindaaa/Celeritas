@@ -1,6 +1,8 @@
 #include <algorithm>
+#include <memory>
 #include <numeric>
 #include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -108,15 +110,40 @@ Tensor<T>::Tensor(DeviceType device,
       m_dims(dims),
       m_device(device),
       m_dtype(DTypeTrait<T>::kValue),
-      m_data(data),
+      m_data(nullptr),
       m_control(nullptr) {
     if (m_device == DeviceType::kUnknown) {
         throw std::invalid_argument("Tensor device cannot be kUnknown");
     }
-    if (m_data == nullptr) {
+    if (data == nullptr) {
         throw std::invalid_argument("Tensor external data cannot be null");
     }
+    if (isExternal) {
+        m_data = data;
+    }
+    else {
+        auto& mgr = MemoryMgr::getInstance();
+        switch (m_device) {
+            case DeviceType::kCpu:
+                m_data = mgr.allocateTyped<T>(DeviceType::kCpu, m_size);
+                break;
+            case DeviceType::kCuda:
+                m_data = mgr.allocateTyped<T>(DeviceType::kCuda, m_size);
+                break;
+            case DeviceType::kUnknown:
+            case DeviceType::kNumDeviceTypes:
+            default:
+                throw std::runtime_error("Unsupported device type");
+        }
 
+        try {
+            mgr.memcpy(m_device, m_data, m_device, data, sizeof(T) * m_size);
+        } catch (...) {
+            mgr.releaseTyped<T>(m_device, m_data, m_size);
+            m_data = nullptr;
+            throw;
+        }
+    }
     m_control = new ControlBlock{1, isExternal};
 }
 
@@ -346,47 +373,60 @@ void Tensor<T>::release() noexcept {
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor) {
+std::string Tensor<T>::toString() const {
+    std::ostringstream os;
     os << "Tensor(shape=[";
-    for (std::size_t i = 0; i < tensor.dims().size(); ++i) {
+    for (std::size_t i = 0; i < m_dims.size(); ++i) {
         if (i > 0) {
             os << ", ";
         }
-        os << tensor.dims()[i];
+        os << m_dims[i];
     }
-    os << "], device=" << deviceTypeName(tensor.device())
-       << ", dtype=" << dtypeName(tensor.dtype())
-       << ", size=" << tensor.size()
+    os << "], device=" << deviceTypeName(m_device)
+       << ", dtype=" << dtypeName(m_dtype)
+       << ", size=" << m_size
        << ", data=";
 
-    if (tensor.empty()) {
+    if (empty()) {
         os << "[]";
-        return os << ")";
+        os << ")";
+        return os.str();
     }
 
     constexpr std::size_t kPreviewCount = 16;
-    if (tensor.device() == DeviceType::kUnknown) {
+    if (m_device == DeviceType::kUnknown) {
         os << "<unavailable>";
-        return os << ")";
-    }
-
-    Tensor<T> printable = tensor.clone();
-    if (printable.device() == DeviceType::kCuda) {
-        printable.cpu();
+        os << ")";
+        return os.str();
     }
 
     os << "[";
-    const std::size_t previewCount = std::min(kPreviewCount, printable.size());
+    const T* previewData = data();
+    std::unique_ptr<Tensor<T>> hostPreview;
+    if (m_device == DeviceType::kCuda) {
+        hostPreview = std::make_unique<Tensor<T>>(DeviceType::kCpu, m_size);
+        MemoryMgr::getInstance().memcpy(DeviceType::kCpu, hostPreview->data(), m_device,
+                                        m_data, byteSize());
+        previewData = hostPreview->data();
+    }
+
+    const std::size_t previewCount = std::min(kPreviewCount, m_size);
     for (std::size_t i = 0; i < previewCount; ++i) {
         if (i > 0) {
             os << ", ";
         }
-        os << printable.data()[i];
+        os << previewData[i];
     }
-    if (printable.size() > kPreviewCount) {
+    if (m_size > kPreviewCount) {
         os << ", ...";
     }
     os << "])";
+    return os.str();
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor) {
+    os << tensor.toString();
     return os;
 }
 

@@ -3,13 +3,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <typeindex>
-#include <type_traits>
 #include <string>
+#include <type_traits>
+#include <typeindex>
 
+#include "udm/common/cudaConfig.h"
 #include "udm/core/Tensor.h"
 #include "udm/designPattren/Singleton.h"
-#include "udm/common/cudaConfig.h"
 
 namespace eCEL {
 
@@ -21,6 +21,9 @@ enum class OpType {
     kEmb,
     kRms,
     kMatmul,
+    kSwiglu,
+    kSoftmax,
+    kScalesum,
     kMha,
     kNumOpTypes,
 };
@@ -35,6 +38,12 @@ inline std::string opTypeName(OpType opType) {
             return "rms";
         case OpType::kMatmul:
             return "matmul";
+        case OpType::kSwiglu:
+            return "swiglu";
+        case OpType::kSoftmax:
+            return "softmax";
+        case OpType::kScalesum:
+            return "scalesum";
         case OpType::kMha:
             return "mha";
         case OpType::kUnknown:
@@ -61,14 +70,42 @@ template <typename T>
 using RmsKernelFn = void (*)(const eUTIL::Tensor<T>& input,
                              const eUTIL::Tensor<T>& weight,
                              eUTIL::Tensor<T>& output,
-                             void* stream);      
-                             
+                             void* stream);
+
 template <typename T>
 using MatmulKernelFn = void (*)(const eUTIL::Tensor<T>& input,
                                 const eUTIL::Tensor<T>& weight,
                                 eUTIL::Tensor<T>& output,
                                 const float scale,
-                                const eUTIL::CudaConfig* config);  
+                                const eUTIL::CudaConfig* config);
+
+template <typename T>
+using SwigluKernelFn = void (*)(const eUTIL::Tensor<T>& input1,
+                                const eUTIL::Tensor<T>& input2,
+                                eUTIL::Tensor<T>& output,
+                                void* stream);
+
+template <typename T>
+using SoftmaxKernelFn = void (*)(eUTIL::Tensor<T>& input,
+                                 void* stream);
+
+template <typename T>
+using ScalesumKernelFn = void (*)(const eUTIL::Tensor<T>& value, 
+                                  const eUTIL::Tensor<T>& scale,
+                                  eUTIL::Tensor<T>& output, 
+                                  int pos, int size, int stride,
+                                  void* stream);
+
+template <typename T>
+using MhaKernelFn = void (*)(int32_t pos, int32_t head_num, 
+                             int32_t layer_index, int32_t seq_len, 
+                             int32_t kv_dim, int32_t kv_mul, int32_t head_size, 
+                             const eUTIL::Tensor<T>& query_tensor, 
+                             const eUTIL::Tensor<T>& key_cache_tensor, 
+                             const eUTIL::Tensor<T>& value_cache_tensor,
+                             eUTIL::Tensor<T>& score_tensor,
+                             eUTIL::Tensor<T>& mha_out,
+                             const eUTIL::CudaConfig* config);
 
 class KernelRegistry final : public Singleton<KernelRegistry> {
 friend class Singleton<KernelRegistry>;
@@ -87,8 +124,8 @@ private:
 
     template <typename KernelFn>
     KernelFn lookup(OpType opType,
-                 eUTIL::DeviceType device,
-                 eUTIL::DType dtype) const {
+                    eUTIL::DeviceType device,
+                    eUTIL::DType dtype) const {
         auto fnPtr = m_regTable[(std::size_t)(opType)][(std::size_t)(device)][(std::size_t)(dtype)];
         if (fnPtr == nullptr) {
             std::string log = opTypeName(opType) + " kernel is not registered for this tensor type/device";

@@ -1,10 +1,28 @@
-#ifndef MHA_KERNEL_H
-#define MHA_KERNEL_H
-namespace kernel {
-void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t seq_len,
-                   int32_t kv_dim, int32_t kv_mul, int32_t head_size, const tensor::Tensor& mha_out,
-                   const tensor::Tensor& query_tensor, const tensor::Tensor& score_tensor,
-                   const tensor::Tensor& key_cache_tensor, const tensor::Tensor& value_cache_tensor,
-                   base::DeviceType device_type, CudaConfig* config);
-}
-#endif  // MHA_KERNEL_H
+#pragma once
+
+#include "udm/core/Tensor.h"
+#include "udm/common/cudaConfig.h"
+
+namespace eCEL {
+template<typename T>
+void mhaKernelCu(int32_t pos, int32_t head_num, 
+                  int32_t layer_index, int32_t seq_len, 
+                  int32_t kv_dim, int32_t kv_mul, int32_t head_size, 
+                  const eUTIL::Tensor<T>& query_tensor, 
+                  const eUTIL::Tensor<T>& key_cache_tensor, 
+                  const eUTIL::Tensor<T>& value_cache_tensor,
+                  eUTIL::Tensor<T>& score_tensor,
+                  eUTIL::Tensor<T>& mha_out,
+                  const eUTIL::CudaConfig* config);
+
+template<>
+void mhaKernelCu(int32_t pos, int32_t head_num, 
+                  int32_t layer_index, int32_t seq_len, 
+                  int32_t kv_dim, int32_t kv_mul, int32_t head_size, 
+                  const eUTIL::Tensor<float>& query_tensor, 
+                  const eUTIL::Tensor<float>& key_cache_tensor, 
+                  const eUTIL::Tensor<float>& value_cache_tensor,
+                  eUTIL::Tensor<float>& score_tensor,
+                  eUTIL::Tensor<float>& mha_out,
+                  const eUTIL::CudaConfig* config);
+}  // namespace eCEL

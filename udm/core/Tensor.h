@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <iosfwd>
+#include <string>
 #include <type_traits>
 #include <vector>
 #include <assert.h>
@@ -46,6 +47,7 @@ public:
     // Convert in-place to CPU/CUDA storage. If already on target device, no-op.
     Tensor& cpu();
     Tensor& cuda(cudaStream_t stream = nullptr);
+    std::string toString() const;
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
