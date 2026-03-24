@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cmath>
+#include <cstdint>
 #include <random>
 
 #include "celeritas/operation/Layer.h"
@@ -53,9 +54,9 @@ TEST(test_layer, add_layer_forward_cpu) {
     using eUTIL::DeviceType;
     using eUTIL::Tensor;
 
-    Tensor<int> input1(DeviceType::kCpu, 4);
-    Tensor<int> input2(DeviceType::kCpu, 4);
-    Tensor<int> output(DeviceType::kCpu, 4);
+    Tensor<float> input1(DeviceType::kCpu, 4);
+    Tensor<float> input2(DeviceType::kCpu, 4);
+    Tensor<float> output(DeviceType::kCpu, 4);
 
     input1[0] = 1;
     input1[1] = 2;
@@ -66,7 +67,7 @@ TEST(test_layer, add_layer_forward_cpu) {
     input2[2] = 30;
     input2[3] = 40;
 
-    eCEL::AddLayer<int> layer(DeviceType::kCpu);
+    eCEL::AddLayer layer(DeviceType::kCpu);
     EXPECT_EQ(layer.type(), eCEL::LayerType::kAdd);
     EXPECT_FALSE(layer.hasWeight());
     EXPECT_EQ(layer.inputCount(), 2U);
@@ -88,10 +89,10 @@ TEST(test_layer, add_layer_missing_input_returns_invalid_argument) {
     using eUTIL::DeviceType;
     using eUTIL::Tensor;
 
-    Tensor<int> input1(DeviceType::kCpu, 2);
-    Tensor<int> output(DeviceType::kCpu, 2);
+    Tensor<int8_t> input1(DeviceType::kCpu, 2);
+    Tensor<int8_t> output(DeviceType::kCpu, 2);
 
-    eCEL::AddLayer<int> layer(DeviceType::kCpu);
+    eCEL::AddLayer layer(DeviceType::kCpu);
     layer.setInput(0, input1);
     layer.setOutput(0, output);
 
@@ -107,7 +108,7 @@ TEST(test_layer, embedding_layer_forward_cpu) {
     Tensor<float> output(DeviceType::kCpu, kTokenNum, kEmbDim);
     fillEmbeddingInputs(input, weight);
 
-    eCEL::EmbeddingLayer<float> layer(DeviceType::kCpu, kVocabSize);
+    eCEL::EmbeddingLayer layer(DeviceType::kCpu, kVocabSize);
     EXPECT_EQ(layer.type(), eCEL::LayerType::kEmb);
     EXPECT_TRUE(layer.hasWeight());
     EXPECT_EQ(layer.inputCount(), 1U);
@@ -130,7 +131,7 @@ TEST(test_layer, embedding_layer_missing_weight_returns_invalid_argument) {
     Tensor<float> input(DeviceType::kCpu, kTokenNum);
     Tensor<float> output(DeviceType::kCpu, kTokenNum, kEmbDim);
 
-    eCEL::EmbeddingLayer<float> layer(DeviceType::kCpu, kVocabSize);
+    eCEL::EmbeddingLayer layer(DeviceType::kCpu, kVocabSize);
     layer.setInput(0, input);
     layer.setOutput(0, output);
 
@@ -152,7 +153,7 @@ TEST(test_layer, rmsnorm_layer_forward_cpu) {
         weight[static_cast<int>(i)] = dist(rng);
     }
 
-    eCEL::RmsNormLayer<float> layer(DeviceType::kCpu);
+    eCEL::RmsNormLayer layer(DeviceType::kCpu);
     EXPECT_EQ(layer.type(), eCEL::LayerType::kRms);
     EXPECT_TRUE(layer.hasWeight());
     EXPECT_EQ(layer.inputCount(), 1U);
@@ -190,7 +191,7 @@ TEST(test_layer, rmsnorm_layer_missing_weight_returns_invalid_argument) {
     Tensor<float> input(DeviceType::kCpu, kRmsCount);
     Tensor<float> output(DeviceType::kCpu, kRmsCount);
 
-    eCEL::RmsNormLayer<float> layer(DeviceType::kCpu);
+    eCEL::RmsNormLayer layer(DeviceType::kCpu);
     layer.setInput(0, input);
     layer.setOutput(0, output);
 
@@ -206,7 +207,7 @@ TEST(test_layer, matmult_layer_forward_cpu) {
     Tensor<float> output(DeviceType::kCpu, 2, 2);
     fillMatmulExample(input, weight);
 
-    eCEL::MatmultLayer<float> layer(DeviceType::kCpu, 0.5f);
+    eCEL::MatmultLayer layer(DeviceType::kCpu, 0.5f);
     EXPECT_EQ(layer.type(), eCEL::LayerType::kMatmul);
     EXPECT_TRUE(layer.hasWeight());
     EXPECT_EQ(layer.inputCount(), 1U);
@@ -232,7 +233,7 @@ TEST(test_layer, matmult_layer_missing_weight_returns_invalid_argument) {
     Tensor<float> input(DeviceType::kCpu, 3, 2);
     Tensor<float> output(DeviceType::kCpu, 2, 2);
 
-    eCEL::MatmultLayer<float> layer(DeviceType::kCpu);
+    eCEL::MatmultLayer layer(DeviceType::kCpu);
     layer.setInput(0, input);
     layer.setOutput(0, output);
 

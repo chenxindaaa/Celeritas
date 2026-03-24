@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 
 add_library(celeritas STATIC
+  models/Model.cpp
+  models/Llama2.cpp
   kernels/KernelRegistry.cpp
   kernels/KernelFactory.cpp
   operation/Layer.cpp
@@ -25,6 +27,7 @@ find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 target_link_libraries(celeritas
   PUBLIC
+    udm
     CUDA::cudart
     ${ARMADILLO_LIBRARIES}
     BLAS::BLAS

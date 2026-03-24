@@ -6,15 +6,18 @@
 
 namespace eCEL {
 
-template<typename T>
-void matmulKernelCpu(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weight,
-                     eUTIL::Tensor<T>& output, const float scale = 1.f,
-                     const eUTIL::CudaConfig* config = nullptr) {
+template<typename Tin, typename Tw = Tin, typename Ts = float, typename Tout = Tin>
+void matmulKernelCpu(const eUTIL::Tensor<Tin>& input, const eUTIL::Tensor<Tw>& weight,
+                     const eUTIL::Tensor<Ts>& scaler, eUTIL::Tensor<Tout>& output,
+                     int32_t group_size = 1, const eUTIL::CudaConfig* config = nullptr) {
     (void)config;
+    (void)group_size;
 
-    const T* input_ptr = input.data();
-    const T* weight_ptr = weight.data();
-    T* output_ptr = output.data();
+    const float scale = scaler.empty() ? 1.f : static_cast<float>(scaler.data()[0]);
+
+    const Tin* input_ptr = input.data();
+    const Tw* weight_ptr = weight.data();
+    Tout* output_ptr = output.data();
 
     int32_t in_dim1 = 1;
     int32_t in_dim0 = 1;
@@ -34,9 +37,9 @@ void matmulKernelCpu(const eUTIL::Tensor<T>& input, const eUTIL::Tensor<T>& weig
     // CHECK_EQ(in_dim0, wei_dim1);
 
     // CHECK_EQ(output.size(), wei_dim0 * in_dim1);
-    arma::Mat<T> input_mat(const_cast<T*>(input_ptr), in_dim1, in_dim0, false, true);
-    arma::Mat<T> weight_mat(const_cast<T*>(weight_ptr), wei_dim1, wei_dim0, false, true);
-    arma::Mat<T> output_mat(output_ptr, in_dim1, wei_dim0, false, true);
+    arma::Mat<Tin> input_mat(const_cast<Tin*>(input_ptr), in_dim1, in_dim0, false, true);
+    arma::Mat<Tw> weight_mat(const_cast<Tw*>(weight_ptr), wei_dim1, wei_dim0, false, true);
+    arma::Mat<Tout> output_mat(output_ptr, in_dim1, wei_dim0, false, true);
     output_mat = ((input_mat * weight_mat)) * scale;
 }
 

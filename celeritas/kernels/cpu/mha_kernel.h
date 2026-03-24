@@ -19,6 +19,7 @@ void mhaKernelCpu(int32_t pos, int32_t head_num,
                   const eUTIL::CudaConfig* config) {
     int32_t layer_offset = layer_index * seq_len * kv_dim;
     float scale = 1.f / std::sqrt(static_cast<float>(head_size));
+    eUTIL::Tensor<T> scale_tensor(eUTIL::DeviceType::kCpu, {1}, &scale, true);
 
     for (int32_t h = 0; h < head_num; ++h) {
         T* score_head_addr = score_tensor.data() + h * seq_len;
@@ -35,7 +36,7 @@ void mhaKernelCpu(int32_t pos, int32_t head_num,
 
             // score_mat [1]
             eUTIL::Tensor<T> score_mat(eUTIL::DeviceType::kCpu, {1}, score_head_addr + t, true/*isExternal*/);
-            KernelFactory::getMatmulKernel()(query_mat, key_mat, score_mat, scale, config);
+            KernelFactory::getMatmulKernel()(query_mat, key_mat, scale_tensor, score_mat, 1, config);
         }
 
         // score_head_tensor [pos+1]

@@ -1,6 +1,12 @@
 #pragma once
 
+#include <cstdint>
+
+#include <cuda_fp16.h>
+
 namespace eUTIL {
+
+using float16 = __half;
 
 enum class DeviceType {
     kUnknown,
@@ -11,9 +17,9 @@ enum class DeviceType {
 
 enum class DType {
     kUnknown,
-    kInt32,
+    kInt8,
+    kFloat16,
     kFloat32,
-    kFloat64,
     kNumDTypes,
 };
 
@@ -23,18 +29,18 @@ struct DTypeTrait {
 };
 
 template <>
-struct DTypeTrait<int> {
-    static constexpr DType kValue = DType::kInt32;
+struct DTypeTrait<int8_t> {
+    static constexpr DType kValue = DType::kInt8;
+};
+
+template <>
+struct DTypeTrait<float16> {
+    static constexpr DType kValue = DType::kFloat16;
 };
 
 template <>
 struct DTypeTrait<float> {
     static constexpr DType kValue = DType::kFloat32;
-};
-
-template <>
-struct DTypeTrait<double> {
-    static constexpr DType kValue = DType::kFloat64;
 };
 
 inline constexpr bool isUnknownDevice(DeviceType device) {

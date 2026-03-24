@@ -21,5 +21,5 @@ else
     exit 1
 fi
 
-cmake -S test -B "$build_dir" -DCMAKE_BUILD_TYPE="$cmake_build_type" $extra_cmake_args
-cmake --build "$build_dir" --target test_celeritas -j 32
+cmake -S . -B "$build_dir" -DCMAKE_BUILD_TYPE="$cmake_build_type" $extra_cmake_args
+cmake --build "$build_dir" --target celeritas_story test_celeritas -j 32

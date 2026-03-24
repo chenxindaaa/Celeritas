@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cuda_runtime_api.h>
+#include <cstdint>
 #include <utility>
 
 #include "udm/core/Tensor.h"
@@ -10,10 +11,10 @@ using eUTIL::Tensor;
 
 TEST(test_tensor, cpu_tensor_alloc_and_reuse) {
     constexpr std::size_t kCount = 37;
-    int* first_ptr = nullptr;
+    int8_t* first_ptr = nullptr;
 
     {
-        Tensor<int> t1(DeviceType::kCpu, kCount);
+        Tensor<int8_t> t1(DeviceType::kCpu, kCount);
         EXPECT_EQ(t1.size(), kCount);
         EXPECT_EQ(t1.device(), DeviceType::kCpu);
         ASSERT_NE(t1.data(), nullptr);
@@ -21,7 +22,7 @@ TEST(test_tensor, cpu_tensor_alloc_and_reuse) {
     }
 
     {
-        Tensor<int> t2(DeviceType::kCpu, kCount);
+        Tensor<int8_t> t2(DeviceType::kCpu, kCount);
         EXPECT_EQ(t2.size(), kCount);
         EXPECT_EQ(t2.device(), DeviceType::kCpu);
         ASSERT_NE(t2.data(), nullptr);
@@ -52,22 +53,22 @@ TEST(test_tensor, gpu_tensor_alloc_and_reuse) {
 }
 
 TEST(test_tensor, tensor_multi_dims_size) {
-    Tensor<int> t(DeviceType::kCpu, 3, 4);
+    Tensor<int8_t> t(DeviceType::kCpu, 3, 4);
     EXPECT_EQ(t.size(), 12);
-    EXPECT_EQ(t.dtype(), DType::kInt32);
+    EXPECT_EQ(t.dtype(), DType::kInt8);
     ASSERT_EQ(t.dims().size(), 2);
     EXPECT_EQ(t.dims()[0], 3);
     EXPECT_EQ(t.dims()[1], 4);
 }
 
 TEST(test_tensor, tensor_dtype_matches_template_type) {
-    Tensor<int> tInt(DeviceType::kCpu, 2, 3);
+    Tensor<int8_t> tInt(DeviceType::kCpu, 2, 3);
+    Tensor<eUTIL::float16> tHalf(DeviceType::kCpu, 2, 3);
     Tensor<float> tFloat(DeviceType::kCpu, 2, 3);
-    Tensor<double> tDouble(DeviceType::kCpu, 2, 3);
 
-    EXPECT_EQ(tInt.dtype(), DType::kInt32);
+    EXPECT_EQ(tInt.dtype(), DType::kInt8);
+    EXPECT_EQ(tHalf.dtype(), DType::kFloat16);
     EXPECT_EQ(tFloat.dtype(), DType::kFloat32);
-    EXPECT_EQ(tDouble.dtype(), DType::kFloat64);
 }
 
 TEST(test_tensor, tensor_dtype_survives_copy_move_and_device_convert) {
@@ -95,17 +96,17 @@ TEST(test_tensor, tensor_dtype_survives_copy_move_and_device_convert) {
 }
 
 TEST(test_tensor, tensor_copy_increments_refcount) {
-    Tensor<int> a(DeviceType::kCpu, 8);
+    Tensor<int8_t> a(DeviceType::kCpu, 8);
     EXPECT_EQ(a.useCount(), 1);
 
-    Tensor<int> b = a;
+    Tensor<int8_t> b = a;
     EXPECT_EQ(a.useCount(), 2);
     EXPECT_EQ(b.useCount(), 2);
 }
 
 TEST(test_tensor, tensor_copy_assignment_increments_refcount) {
-    Tensor<int> a(DeviceType::kCpu, 8);
-    Tensor<int> b(DeviceType::kCpu, 8);
+    Tensor<int8_t> a(DeviceType::kCpu, 8);
+    Tensor<int8_t> b(DeviceType::kCpu, 8);
     b = a;
 
     EXPECT_EQ(a.useCount(), 2);
@@ -114,9 +115,9 @@ TEST(test_tensor, tensor_copy_assignment_increments_refcount) {
 }
 
 TEST(test_tensor, tensor_move_transfers_ownership) {
-    Tensor<int> a(DeviceType::kCpu, 8);
-    int* raw = a.data();
-    Tensor<int> b = std::move(a);
+    Tensor<int8_t> a(DeviceType::kCpu, 8);
+    int8_t* raw = a.data();
+    Tensor<int8_t> b = std::move(a);
 
     EXPECT_EQ(b.useCount(), 1);
     EXPECT_EQ(b.data(), raw);
@@ -124,8 +125,8 @@ TEST(test_tensor, tensor_move_transfers_ownership) {
 }
 
 TEST(test_tensor, tensor_invalid_dims_throw) {
-    EXPECT_THROW((Tensor<int>(DeviceType::kCpu, {0, 4})), std::invalid_argument);
-    EXPECT_THROW((Tensor<int>(DeviceType::kCpu, {})), std::invalid_argument);
+    EXPECT_THROW((Tensor<int8_t>(DeviceType::kCpu, {0, 4})), std::invalid_argument);
+    EXPECT_THROW((Tensor<int8_t>(DeviceType::kCpu, {})), std::invalid_argument);
 }
 
 TEST(test_tensor, tensor_cuda_breaks_cpu_sharing) {
@@ -147,12 +148,12 @@ TEST(test_tensor, tensor_cuda_breaks_cpu_sharing) {
 }
 
 TEST(test_tensor, tensor_clone_creates_deep_copy_on_cpu) {
-    Tensor<int> source(DeviceType::kCpu, 2, 3);
+    Tensor<int8_t> source(DeviceType::kCpu, 2, 3);
     for (int i = 0; i < 6; ++i) {
-        source[i] = i + 1;
+        source[i] = static_cast<int8_t>(i + 1);
     }
 
-    Tensor<int> cloned = source.clone();
+    Tensor<int8_t> cloned = source.clone();
 
     EXPECT_NE(cloned.data(), source.data());
     EXPECT_EQ(cloned.device(), DeviceType::kCpu);
@@ -163,7 +164,7 @@ TEST(test_tensor, tensor_clone_creates_deep_copy_on_cpu) {
     }
 
     source[0] = 99;
-    EXPECT_EQ(cloned[0], 1);
+    EXPECT_EQ(static_cast<int>(cloned[0]), 1);
 }
 
 TEST(test_tensor, tensor_clone_preserves_cuda_data) {
@@ -194,14 +195,14 @@ TEST(test_tensor, tensor_clone_preserves_cuda_data) {
 
 TEST(test_tensor, tensor_external_data_is_non_owning) {
     constexpr std::size_t kCount = 8;
-    int* raw = new int[kCount];
+    int8_t* raw = new int8_t[kCount];
     for (std::size_t i = 0; i < kCount; ++i) {
-        raw[i] = static_cast<int>(i);
+        raw[i] = static_cast<int8_t>(i);
     }
 
     {
-        Tensor<int> a(DeviceType::kCpu, {kCount}, raw, true);
-        Tensor<int> b = a;
+        Tensor<int8_t> a(DeviceType::kCpu, {kCount}, raw, true);
+        Tensor<int8_t> b = a;
 
         EXPECT_EQ(a.data(), raw);
         EXPECT_EQ(b.data(), raw);
@@ -217,12 +218,12 @@ TEST(test_tensor, tensor_external_data_is_non_owning) {
 
 TEST(test_tensor, tensor_non_external_data_is_deep_copied) {
     constexpr std::size_t kCount = 8;
-    int* raw = new int[kCount];
+    int8_t* raw = new int8_t[kCount];
     for (std::size_t i = 0; i < kCount; ++i) {
-        raw[i] = static_cast<int>(i + 1);
+        raw[i] = static_cast<int8_t>(i + 1);
     }
 
-    Tensor<int> copied(DeviceType::kCpu, {kCount}, raw, false);
+    Tensor<int8_t> copied(DeviceType::kCpu, {kCount}, raw, false);
 
     ASSERT_NE(copied.data(), nullptr);
     EXPECT_NE(copied.data(), raw);
@@ -232,9 +233,8 @@ TEST(test_tensor, tensor_non_external_data_is_deep_copied) {
     }
 
     raw[0] = 99;
-    EXPECT_EQ(copied[0], 1);
+    EXPECT_EQ(static_cast<int>(copied[0]), 1);
 
     delete[] raw;
 }
-
 

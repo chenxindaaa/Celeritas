@@ -93,9 +93,9 @@ private:
     ControlBlock* m_control;
 };
 
-extern template class Tensor<int>;
+extern template class Tensor<int8_t>;
+extern template class Tensor<float16>;
 extern template class Tensor<float>;
-extern template class Tensor<double>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor);

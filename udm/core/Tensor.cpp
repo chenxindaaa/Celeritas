@@ -32,17 +32,32 @@ const char* deviceTypeName(DeviceType device) {
 
 const char* dtypeName(DType dtype) {
     switch (dtype) {
-        case DType::kInt32:
-            return "int32";
+        case DType::kInt8:
+            return "int8";
+        case DType::kFloat16:
+            return "float16";
         case DType::kFloat32:
             return "float32";
-        case DType::kFloat64:
-            return "float64";
         case DType::kUnknown:
         case DType::kNumDTypes:
         default:
             return "unknown";
     }
+}
+
+template <typename T>
+double previewValue(T value) {
+    return static_cast<double>(value);
+}
+
+template <>
+double previewValue<int8_t>(int8_t value) {
+    return static_cast<int>(value);
+}
+
+template <>
+double previewValue<float16>(float16 value) {
+    return static_cast<double>(__half2float(value));
 }
 
 }  // namespace
@@ -415,7 +430,7 @@ std::string Tensor<T>::toString() const {
         if (i > 0) {
             os << ", ";
         }
-        os << previewData[i];
+        os << previewValue(previewData[i]);
     }
     if (m_size > kPreviewCount) {
         os << ", ...";
@@ -430,11 +445,11 @@ std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor) {
     return os;
 }
 
-template class Tensor<int>;
+template class Tensor<int8_t>;
+template class Tensor<float16>;
 template class Tensor<float>;
-template class Tensor<double>;
-template std::ostream& operator<<(std::ostream& os, const Tensor<int>& tensor);
+template std::ostream& operator<<(std::ostream& os, const Tensor<int8_t>& tensor);
+template std::ostream& operator<<(std::ostream& os, const Tensor<float16>& tensor);
 template std::ostream& operator<<(std::ostream& os, const Tensor<float>& tensor);
-template std::ostream& operator<<(std::ostream& os, const Tensor<double>& tensor);
 
 }  // namespace eUTIL

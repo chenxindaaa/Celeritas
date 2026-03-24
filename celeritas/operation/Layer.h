@@ -21,7 +21,6 @@ enum class Status {
 
 using LayerType = OpType;
 
-template <typename T>
 class Layer {
 public:
     Layer(eUTIL::DeviceType device,
@@ -29,14 +28,7 @@ public:
           std::size_t inputCount,
           std::size_t outputCount,
           std::size_t weightCount = 0,
-          std::string name = "")
-        : m_device(device),
-          m_type(type),
-          m_name(std::move(name)),
-          m_inputs(inputCount, nullptr),
-          m_outputs(outputCount, nullptr),
-          m_weights(weightCount, nullptr) {}
-
+          std::string name = "");
     virtual ~Layer() = default;
 
     Layer(const Layer&) = delete;
@@ -49,179 +41,164 @@ public:
     const std::string& name() const { return m_name; }
     void setName(const std::string& name) { m_name = name; }
 
-    void setInput(std::size_t index, const eUTIL::Tensor<T>& tensor) {
-        if (index >= m_inputs.size()) {
-            throw std::out_of_range("input index out of range");
-        }
-        m_inputs[index] = &tensor;
-    }
-
-    void setOutput(std::size_t index, eUTIL::Tensor<T>& tensor) {
-        if (index >= m_outputs.size()) {
-            throw std::out_of_range("output index out of range");
-        }
-        m_outputs[index] = &tensor;
-    }
-
-    void setWeight(std::size_t index, const eUTIL::Tensor<T>& tensor) {
-        if (index >= m_weights.size()) {
-            throw std::out_of_range("weight index out of range");
-        }
-        m_weights[index] = &tensor;
-    }
-
-    const eUTIL::Tensor<T>& input(std::size_t index) const {
-        if (index >= m_inputs.size() || m_inputs[index] == nullptr) {
-            throw std::invalid_argument("input tensor is not set");
-        }
-        return *m_inputs[index];
-    }
-
-    eUTIL::Tensor<T>& output(std::size_t index) const {
-        if (index >= m_outputs.size() || m_outputs[index] == nullptr) {
-            throw std::invalid_argument("output tensor is not set");
-        }
-        return *m_outputs[index];
-    }
-
-    const eUTIL::Tensor<T>& weight(std::size_t index) const {
-        if (index >= m_weights.size() || m_weights[index] == nullptr) {
-            throw std::invalid_argument("weight tensor is not set");
-        }
-        return *m_weights[index];
-    }
-
     std::size_t inputCount() const { return m_inputs.size(); }
     std::size_t outputCount() const { return m_outputs.size(); }
     std::size_t weightCount() const { return m_weights.size(); }
     bool hasWeight() const { return !m_weights.empty(); }
 
-protected:
-    void validateBindings() const {
-        validateTensorList(m_inputs, "input");
-        validateTensorList(m_outputs, "output");
-        validateTensorList(m_weights, "weight");
+    template <typename T>
+    void setInput(std::size_t index, const eUTIL::Tensor<T>& tensor) {
+        if (index >= m_inputs.size()) {
+            throw std::out_of_range("input index out of range");
+        }
+        m_inputs[index] = makeConstBinding(tensor);
     }
 
-private:
-    template <typename TensorPtr>
-    static void validateTensorList(const std::vector<TensorPtr>& tensors, const char* label) {
-        for (std::size_t i = 0; i < tensors.size(); ++i) {
-            if (tensors[i] == nullptr) {
-                throw std::invalid_argument(std::string(label) + " tensor is not set");
-            }
+    template <typename T>
+    void setOutput(std::size_t index, eUTIL::Tensor<T>& tensor) {
+        if (index >= m_outputs.size()) {
+            throw std::out_of_range("output index out of range");
         }
+        m_outputs[index] = makeMutableBinding(tensor);
+    }
+
+    template <typename T>
+    void setWeight(std::size_t index, const eUTIL::Tensor<T>& tensor) {
+        if (index >= m_weights.size()) {
+            throw std::out_of_range("weight index out of range");
+        }
+        m_weights[index] = makeConstBinding(tensor);
+    }
+
+protected:
+    struct ConstTensorBinding {
+        const void* tensor = nullptr;
+        eUTIL::DType dtype = eUTIL::DType::kUnknown;
+        eUTIL::DeviceType device = eUTIL::DeviceType::kUnknown;
+    };
+
+    struct MutableTensorBinding {
+        void* tensor = nullptr;
+        eUTIL::DType dtype = eUTIL::DType::kUnknown;
+        eUTIL::DeviceType device = eUTIL::DeviceType::kUnknown;
+    };
+
+    void validateBindings() const;
+
+    eUTIL::DType inputDType(std::size_t index) const;
+    eUTIL::DType outputDType(std::size_t index) const;
+    eUTIL::DType weightDType(std::size_t index) const;
+
+    template <typename T>
+    const eUTIL::Tensor<T>& input(std::size_t index) const {
+        return accessConstTensor<T>(m_inputs, index, "input");
+    }
+
+    template <typename T>
+    eUTIL::Tensor<T>& output(std::size_t index) const {
+        return accessMutableTensor<T>(m_outputs, index, "output");
+    }
+
+    template <typename T>
+    const eUTIL::Tensor<T>& weight(std::size_t index) const {
+        return accessConstTensor<T>(m_weights, index, "weight");
     }
 
 protected:
     eUTIL::DeviceType m_device;
     LayerType m_type;
     std::string m_name;
-    std::vector<const eUTIL::Tensor<T>*> m_inputs;
-    std::vector<eUTIL::Tensor<T>*> m_outputs;
-    std::vector<const eUTIL::Tensor<T>*> m_weights;
-};
+    std::vector<ConstTensorBinding> m_inputs;
+    std::vector<MutableTensorBinding> m_outputs;
+    std::vector<ConstTensorBinding> m_weights;
 
-template <typename T>
-class AddLayer final : public Layer<T> {
-public:
-    explicit AddLayer(eUTIL::DeviceType device, std::string name = "AddLayer")
-        : Layer<T>(device, LayerType::kAdd, 2, 1, 0, std::move(name)) {}
+private:
+    static void validateTensorList(const std::vector<ConstTensorBinding>& tensors, const char* label);
+    static void validateTensorList(const std::vector<MutableTensorBinding>& tensors, const char* label);
 
-    Status forward() override {
-        try {
-            this->validateBindings();
-            auto kernel = KernelFactory::getAddKernel();
-            kernel(this->input(0), this->input(1), this->output(0), nullptr);
-            return Status::kOk;
-        } catch (const std::invalid_argument&) {
-            return Status::kInvalidArgument;
-        } catch (...) {
-            return Status::kRuntimeError;
+    template <typename T>
+    static ConstTensorBinding makeConstBinding(const eUTIL::Tensor<T>& tensor) {
+        return ConstTensorBinding{&tensor, tensor.dtype(), tensor.device()};
+    }
+
+    template <typename T>
+    static MutableTensorBinding makeMutableBinding(eUTIL::Tensor<T>& tensor) {
+        return MutableTensorBinding{&tensor, tensor.dtype(), tensor.device()};
+    }
+
+    template <typename T>
+    static const eUTIL::Tensor<T>& accessConstTensor(const std::vector<ConstTensorBinding>& tensors,
+                                                     std::size_t index,
+                                                     const char* label) {
+        if (index >= tensors.size() || tensors[index].tensor == nullptr) {
+            throw std::invalid_argument(std::string(label) + " tensor is not set");
         }
+        if (tensors[index].dtype != eUTIL::DTypeTrait<T>::kValue) {
+            throw std::invalid_argument(std::string(label) + " tensor dtype mismatch");
+        }
+        return *static_cast<const eUTIL::Tensor<T>*>(tensors[index].tensor);
+    }
+
+    template <typename T>
+    static eUTIL::Tensor<T>& accessMutableTensor(const std::vector<MutableTensorBinding>& tensors,
+                                                 std::size_t index,
+                                                 const char* label) {
+        if (index >= tensors.size() || tensors[index].tensor == nullptr) {
+            throw std::invalid_argument(std::string(label) + " tensor is not set");
+        }
+        if (tensors[index].dtype != eUTIL::DTypeTrait<T>::kValue) {
+            throw std::invalid_argument(std::string(label) + " tensor dtype mismatch");
+        }
+        return *static_cast<eUTIL::Tensor<T>*>(tensors[index].tensor);
     }
 };
 
-template <typename T>
-class EmbeddingLayer final : public Layer<T> {
+class AddLayer final : public Layer {
+public:
+    explicit AddLayer(eUTIL::DeviceType device, std::string name = "AddLayer");
+    Status forward() override;
+};
+
+class EmbeddingLayer final : public Layer {
 public:
     explicit EmbeddingLayer(eUTIL::DeviceType device,
                             int32_t vocabSize,
-                            std::string name = "EmbeddingLayer")
-        : Layer<T>(device, LayerType::kEmb, 1, 1, 1, std::move(name)),
-          m_vocabSize(vocabSize) {}
+                            std::string name = "EmbeddingLayer");
 
     void setVocabSize(int32_t vocabSize) { m_vocabSize = vocabSize; }
     int32_t vocabSize() const { return m_vocabSize; }
 
-    Status forward() override {
-        try {
-            this->validateBindings();
-            auto kernel = KernelFactory::getEmbKernel();
-            kernel(this->input(0), this->weight(0), this->output(0), m_vocabSize, nullptr);
-            return Status::kOk;
-        } catch (const std::invalid_argument&) {
-            return Status::kInvalidArgument;
-        } catch (...) {
-            return Status::kRuntimeError;
-        }
-    }
+    Status forward() override;
 
 private:
     int32_t m_vocabSize;
 };
 
-template <typename T>
-class RmsNormLayer final : public Layer<T> {
+class RmsNormLayer final : public Layer {
 public:
-    explicit RmsNormLayer(eUTIL::DeviceType device, std::string name = "RmsNormLayer")
-        : Layer<T>(device, LayerType::kRms, 1, 1, 1, std::move(name)) {}
-
-    Status forward() override {
-        try {
-            this->validateBindings();
-            auto kernel = KernelFactory::getRmsKernel();
-            kernel(this->input(0), this->weight(0), this->output(0), nullptr);
-            return Status::kOk;
-        } catch (const std::invalid_argument&) {
-            return Status::kInvalidArgument;
-        } catch (...) {
-            return Status::kRuntimeError;
-        }
-    }
+    explicit RmsNormLayer(eUTIL::DeviceType device, std::string name = "RmsNormLayer");
+    Status forward() override;
 };
 
-template <typename T>
-class MatmultLayer final : public Layer<T> {
+class MatmultLayer final : public Layer {
 public:
     explicit MatmultLayer(eUTIL::DeviceType device,
                           float scale = 1.f,
-                          std::string name = "MatmultLayer")
-        : Layer<T>(device, LayerType::kMatmul, 1, 1, 1, std::move(name)),
-          m_scale(scale),
-          m_cudaConfig(nullptr) {}
+                          std::string name = "MatmultLayer");
 
     void setScale(float scale) { m_scale = scale; }
     float scale() const { return m_scale; }
+    void setGroupSize(int32_t groupSize) { m_groupSize = groupSize; }
+    int32_t groupSize() const { return m_groupSize; }
 
     void setCudaConfig(const eUTIL::CudaConfig* config) { m_cudaConfig = config; }
     const eUTIL::CudaConfig* cudaConfig() const { return m_cudaConfig; }
 
-    Status forward() override {
-        try {
-            this->validateBindings();
-            auto kernel = KernelFactory::getMatmulKernel();
-            kernel(this->input(0), this->weight(0), this->output(0), m_scale, m_cudaConfig);
-            return Status::kOk;
-        } catch (const std::invalid_argument&) {
-            return Status::kInvalidArgument;
-        } catch (...) {
-            return Status::kRuntimeError;
-        }
-    }
+    Status forward() override;
 
 private:
     float m_scale;
+    int32_t m_groupSize;
     const eUTIL::CudaConfig* m_cudaConfig;
 };
 

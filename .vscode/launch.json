@@ -5,7 +5,7 @@
             "name": "gdb",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/test_celeritas",
+            "program": "${workspaceFolder}/build/debug/test/test_celeritas",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
@@ -13,7 +13,7 @@
             "externalConsole": false,
             "MIMode": "gdb",
             "miDebuggerPath": "/usr/bin/gdb",
-            "preLaunchTask": "build-debug-test_celeritas",
+            "preLaunchTask": "build-debug-all",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -23,16 +23,35 @@
             ]
         },
         {
-            "name": "cuda-gdb",
+            "name": "cuda-gdb_test",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/test_celeritas",
+            "program": "${workspaceFolder}/build/debug/test/test_celeritas",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "miDebuggerPath": "/usr/local/cuda-12.9/bin/cuda-gdb",
-            "preLaunchTask": "build-debug-test_celeritas",
+            "preLaunchTask": "build-debug-all",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "cuda-gdb_demo",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/demo/celeritas_story",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "miDebuggerPath": "/usr/local/cuda-12.9/bin/cuda-gdb",
+            "preLaunchTask": "build-debug-all",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

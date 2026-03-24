@@ -12,26 +12,29 @@ class Dispatcher {
 public:
     virtual ~Dispatcher() = default;
     Dispatcher(OpType opType) : m_opType(opType),
-                                m_device(eUTIL::DeviceType::kUnknown),
-                                m_dtype(eUTIL::DType::kUnknown) {}
+                                m_device(eUTIL::DeviceType::kUnknown) {}
 
 protected:
-    template <typename T, typename FirstTensor, typename... RestTensors>
+    template <typename FirstTensor, typename... RestTensors>
     void check(const FirstTensor& first,
                const RestTensors&... rest) const {
-        // Check data type
-        m_dtype = eUTIL::DTypeTrait<T>::kValue;
-        if (m_dtype == eUTIL::DType::kUnknown) {
-            throw std::invalid_argument(
-                std::string(opTypeName(m_opType)) + " received unsupported tensor dtype");
-        }
-
-        // Check devices
         m_device = first.device();
         if (eUTIL::isUnknownDevice(m_device)) {
             throw std::invalid_argument(
                 std::string(opTypeName(m_opType)) + " received tensor on kUnknown device");
         }
+
+        m_tensorDtypes.clear();
+        auto collectOne = [&](const auto& t) {
+            const auto dtype = t.dtype();
+            if (dtype == eUTIL::DType::kUnknown) {
+                throw std::invalid_argument(
+                    std::string(opTypeName(m_opType)) + " received unsupported tensor dtype");
+            }
+            m_tensorDtypes.push_back(dtype);
+        };
+        collectOne(first);
+
         auto checkOne = [&](const auto& t) {
             const auto dev = t.device();
             if (eUTIL::isUnknownDevice(dev)) {
@@ -42,6 +45,7 @@ protected:
                 throw std::invalid_argument(
                     std::string(opTypeName(m_opType)) + " requires all tensors on the same device");
             }
+            collectOne(t);
         };
         (checkOne(rest), ...);
     }
@@ -49,14 +53,14 @@ protected:
     template<typename KernelFn>
     KernelFn lookup() const
     {
-        return  m_kernelRegistry.lookup<KernelFn>(m_opType, m_device, m_dtype);
+        return  m_kernelRegistry.lookup<KernelFn>(m_opType, m_device, m_tensorDtypes);
     }
 
 protected:
     static KernelRegistry& m_kernelRegistry;
     const OpType m_opType;
     mutable eUTIL::DeviceType m_device;
-    mutable eUTIL::DType m_dtype;
+    mutable std::vector<eUTIL::DType> m_tensorDtypes;
 };
 
 class AddDispatcher final : public Dispatcher {
@@ -67,7 +71,7 @@ public:
                     const eUTIL::Tensor<T>& input2,
                     eUTIL::Tensor<T>& output,
                     void* stream = nullptr) const {
-        check<T>(input1, input2, output);
+        check(input1, input2, output);
         auto kernel = lookup<AddKernelFn<T>>();
         kernel(input1, input2, output, stream);
     }
@@ -82,7 +86,7 @@ public:
                     eUTIL::Tensor<T>& output,
                     int32_t vocabSize,
                     void* stream = nullptr) const {
-        check<T>(input, weight, output);
+        check(input, weight, output);
         auto kernel = lookup<EmbKernelFn<T>>();
         kernel(input, weight, output, vocabSize, stream);
     }
@@ -96,7 +100,7 @@ public:
                     const eUTIL::Tensor<T>& weight,
                     eUTIL::Tensor<T>& output,
                     void* stream = nullptr) const {
-        check<T>(input, weight, output);
+        check(input, weight, output);
         auto kernel = lookup<RmsKernelFn<T>>();
         kernel(input, weight, output, stream);
     }
@@ -105,15 +109,16 @@ public:
 class MatmulDispatcher final : public Dispatcher {
 public:
     MatmulDispatcher(OpType opType) : Dispatcher(opType) {}
-    template <typename T>
-    void operator()(const eUTIL::Tensor<T>& input,
-                    const eUTIL::Tensor<T>& weight,
-                    eUTIL::Tensor<T>& output,
-                    const float scale,
+    template <typename Tin, typename Tw = Tin, typename Ts = float, typename Tout = Tin>
+    void operator()(const eUTIL::Tensor<Tin>& input,
+                    const eUTIL::Tensor<Tw>& weight,
+                    const eUTIL::Tensor<Ts>& scaler,
+                    eUTIL::Tensor<Tout>& output,
+                    int32_t group_size,
                     const eUTIL::CudaConfig* config = nullptr) const {
-        check<T>(input, weight, output);
-        auto kernel = lookup<MatmulKernelFn<T>>();
-        kernel(input, weight, output, scale, config);
+        check(input, weight, scaler, output);
+        auto kernel = lookup<MatmulKernelFn<Tin, Tw, Ts, Tout>>();
+        kernel(input, weight, scaler, output, group_size, config);
     }
 };
 
@@ -125,7 +130,7 @@ public:
                     const eUTIL::Tensor<T>& input2,
                     eUTIL::Tensor<T>& output,
                     void* stream = nullptr) const {
-        check<T>(input1, input2, output);
+        check(input1, input2, output);
         auto kernel = lookup<SwigluKernelFn<T>>();
         kernel(input1, input2, output, stream);
     }
@@ -137,7 +142,7 @@ public:
     template <typename T>
     void operator()(eUTIL::Tensor<T>& input,
                     void* stream = nullptr) const {
-        check<T>(input);
+        check(input);
         auto kernel = lookup<SoftmaxKernelFn<T>>();
         kernel(input, stream);
     }
@@ -152,7 +157,7 @@ public:
                     eUTIL::Tensor<T>& output, 
                     int pos, int size, int stride,
                     void* stream = nullptr) const {
-        check<T>(value, scale, output);
+        check(value, scale, output);
         auto kernel = lookup<ScalesumKernelFn<T>>();
         kernel(value, scale, output, pos, size, stride, stream);
     }
@@ -171,7 +176,7 @@ public:
                     eUTIL::Tensor<T>& score_tensor,
                     eUTIL::Tensor<T>& mha_out,
                     const eUTIL::CudaConfig* config = nullptr) const {
-        check<T>(query_tensor, key_cache_tensor, value_cache_tensor, score_tensor, mha_out);
+        check(query_tensor, key_cache_tensor, value_cache_tensor, score_tensor, mha_out);
         auto kernel = lookup<MhaKernelFn<T>>();
         kernel(pos, head_num, layer_index, seq_len, kv_dim, kv_mul, head_size, 
                query_tensor, key_cache_tensor, value_cache_tensor, score_tensor, mha_out, config);

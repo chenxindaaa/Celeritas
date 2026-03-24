@@ -1,11 +1,11 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
-#include <type_traits>
-#include <typeindex>
+#include <unordered_map>
+#include <vector>
 
 #include "udm/common/cudaConfig.h"
 #include "udm/core/Tensor.h"
@@ -72,11 +72,12 @@ using RmsKernelFn = void (*)(const eUTIL::Tensor<T>& input,
                              eUTIL::Tensor<T>& output,
                              void* stream);
 
-template <typename T>
-using MatmulKernelFn = void (*)(const eUTIL::Tensor<T>& input,
-                                const eUTIL::Tensor<T>& weight,
-                                eUTIL::Tensor<T>& output,
-                                const float scale,
+template <typename Tin, typename Tw = Tin, typename Ts = float, typename Tout = Tin>
+using MatmulKernelFn = void (*)(const eUTIL::Tensor<Tin>& input,
+                                const eUTIL::Tensor<Tw>& weight,
+                                const eUTIL::Tensor<Ts>& scaler,
+                                eUTIL::Tensor<Tout>& output,
+                                int32_t group_size,
                                 const eUTIL::CudaConfig* config);
 
 template <typename T>
@@ -107,6 +108,61 @@ using MhaKernelFn = void (*)(int32_t pos, int32_t head_num,
                              eUTIL::Tensor<T>& mha_out,
                              const eUTIL::CudaConfig* config);
 
+inline std::string dtypeName(eUTIL::DType dtype) {
+    switch (dtype) {
+        case eUTIL::DType::kInt8:
+            return "int8";
+        case eUTIL::DType::kFloat16:
+            return "float16";
+        case eUTIL::DType::kFloat32:
+            return "float32";
+        case eUTIL::DType::kUnknown:
+        case eUTIL::DType::kNumDTypes:
+        default:
+            return "unknown";
+    }
+}
+
+inline std::string tensorSignatureToString(const std::vector<eUTIL::DType>& dtypes) {
+    std::string signature = "[";
+    for (std::size_t i = 0; i < dtypes.size(); ++i) {
+        if (i > 0) {
+            signature += ", ";
+        }
+        signature += dtypeName(dtypes[i]);
+    }
+    signature += "]";
+    return signature;
+}
+
+template <typename... Ts>
+std::vector<eUTIL::DType> makeTensorSignature() {
+    return {eUTIL::DTypeTrait<Ts>::kValue...};
+}
+
+struct KernelKey {
+    OpType op = OpType::kUnknown;
+    eUTIL::DeviceType device = eUTIL::DeviceType::kUnknown;
+    std::vector<eUTIL::DType> tensorDtypes;
+
+    bool operator==(const KernelKey& other) const {
+        return op == other.op &&
+               device == other.device &&
+               tensorDtypes == other.tensorDtypes;
+    }
+};
+
+struct KernelKeyHash {
+    std::size_t operator()(const KernelKey& key) const {
+        std::size_t seed = std::hash<int>{}(static_cast<int>(key.op));
+        seed ^= std::hash<int>{}(static_cast<int>(key.device)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        for (const auto dtype : key.tensorDtypes) {
+            seed ^= std::hash<int>{}(static_cast<int>(dtype)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
 class KernelRegistry final : public Singleton<KernelRegistry> {
 friend class Singleton<KernelRegistry>;
 friend class Dispatcher;
@@ -116,30 +172,28 @@ private:
     template <typename KernelFn>
     void registerKernel(OpType opType,
                         eUTIL::DeviceType device,
-                        eUTIL::DType dtype,
+                        std::vector<eUTIL::DType> tensorDtypes,
                         KernelFn fn) {
-        m_regTable[(std::size_t)(opType)][(std::size_t)(device)][(std::size_t)(dtype)] =
-            reinterpret_cast<FnPtr>(fn);
+        m_regTable[KernelKey{opType, device, std::move(tensorDtypes)}] = reinterpret_cast<FnPtr>(fn);
     }
 
     template <typename KernelFn>
     KernelFn lookup(OpType opType,
                     eUTIL::DeviceType device,
-                    eUTIL::DType dtype) const {
-        auto fnPtr = m_regTable[(std::size_t)(opType)][(std::size_t)(device)][(std::size_t)(dtype)];
-        if (fnPtr == nullptr) {
-            std::string log = opTypeName(opType) + " kernel is not registered for this tensor type/device";
+                    const std::vector<eUTIL::DType>& tensorDtypes) const {
+        const auto it = m_regTable.find(KernelKey{opType, device, tensorDtypes});
+        if (it == m_regTable.end() || it->second == nullptr) {
+            std::string log = opTypeName(opType) + " kernel is not registered for device=" +
+                              std::to_string(static_cast<int>(device)) +
+                              " tensor_dtypes=" + tensorSignatureToString(tensorDtypes);
             throw std::invalid_argument(log);
         }
-        return reinterpret_cast<KernelFn>(fnPtr);
+        return reinterpret_cast<KernelFn>(it->second);
     }
     void initRegistryTable();
 
 private:
-    std::array<std::array<std::array<FnPtr, (std::size_t)(eUTIL::DType::kNumDTypes)>,
-                          (std::size_t)(eUTIL::DeviceType::kNumDeviceTypes)>,
-               (std::size_t)(OpType::kNumOpTypes)>
-        m_regTable{};
+    std::unordered_map<KernelKey, FnPtr, KernelKeyHash> m_regTable{};
 };
 
 }  // namespace eCEL

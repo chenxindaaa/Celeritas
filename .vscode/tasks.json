@@ -2,12 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "configure-debug-test_celeritas",
+      "label": "configure-debug-all",
       "type": "shell",
       "command": "cmake",
       "args": [
         "-S",
-        "test",
+        ".",
         "-B",
         "build/debug",
         "-DCMAKE_BUILD_TYPE=Debug"
@@ -18,13 +18,14 @@
       "problemMatcher": []
     },
     {
-      "label": "build-debug-test_celeritas",
+      "label": "build-debug-all",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "build/debug",
         "--target",
+        "celeritas_story",
         "test_celeritas",
         "-j",
         "32"
@@ -37,7 +38,7 @@
         "isDefault": true
       },
       "dependsOn": [
-        "configure-debug-test_celeritas"
+        "configure-debug-all"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []

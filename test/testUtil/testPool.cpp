@@ -7,15 +7,15 @@ TEST(test_pool, cpu_allocate_and_release) {
     auto& mgr = eUTIL::MemoryMgr::getInstance();
     constexpr std::size_t kCount = 64;
 
-    int* ptr = mgr.allocateTyped<int>(eUTIL::DeviceType::kCpu, kCount);
+    int8_t* ptr = mgr.allocateTyped<int8_t>(eUTIL::DeviceType::kCpu, kCount);
     ASSERT_NE(ptr, nullptr);
 
-    mgr.releaseTyped<int>(eUTIL::DeviceType::kCpu, ptr, kCount);
+    mgr.releaseTyped<int8_t>(eUTIL::DeviceType::kCpu, ptr, kCount);
 }
 
 TEST(test_pool, cpu_zero_count_returns_nullptr) {
     auto& mgr = eUTIL::MemoryMgr::getInstance();
-    EXPECT_EQ(mgr.allocateTyped<int>(eUTIL::DeviceType::kCpu, 0), nullptr);
+    EXPECT_EQ(mgr.allocateTyped<int8_t>(eUTIL::DeviceType::kCpu, 0), nullptr);
 }
 
 TEST(test_pool, gpu_allocate_and_release) {

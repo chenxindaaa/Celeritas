@@ -8,7 +8,8 @@
 
 namespace {
 
-__global__ void addKernel(const int* a, const int* b, int* o, int n) {
+template <typename T>
+__global__ void addKernel(const T* a, const T* b, T* o, int n) {
     const int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < n) {
         o[idx] = a[idx] + b[idx];
@@ -22,14 +23,11 @@ void CheckCuda(cudaError_t code, const char* op) {
     }
 }
 
-}  // namespace
-
-namespace eCEL {
-
-template<>
-void add_kernel_cu(const eUTIL::Tensor<int>& input1,
-                   const eUTIL::Tensor<int>& input2,
-                   eUTIL::Tensor<int>& output, void* stream) {
+template <typename T>
+void launchAddKernel(const eUTIL::Tensor<T>& input1,
+                     const eUTIL::Tensor<T>& input2,
+                     eUTIL::Tensor<T>& output,
+                     void* stream) {
     const int32_t size = static_cast<int32_t>(input1.size());
     if (size != static_cast<int32_t>(input2.size()) ||
         size != static_cast<int32_t>(output.size())) {
@@ -42,12 +40,29 @@ void add_kernel_cu(const eUTIL::Tensor<int>& input1,
         cudaStream_t cuda_stream = static_cast<cudaStream_t>(stream);
         addKernel<<<gridSize, blockSize, 0, cuda_stream>>>(input1.data(), input2.data(),
                                                            output.data(), size);
-    }
-    else {
+    } else {
         addKernel<<<gridSize, blockSize>>>(input1.data(), input2.data(),
                                            output.data(), size);
     }
     CheckCuda(cudaPeekAtLastError(), "addKernel launch");
+}
+
+}  // namespace
+
+namespace eCEL {
+
+template<>
+void add_kernel_cu(const eUTIL::Tensor<float>& input1,
+                   const eUTIL::Tensor<float>& input2,
+                   eUTIL::Tensor<float>& output, void* stream) {
+    launchAddKernel(input1, input2, output, stream);
+}
+
+template<>
+void add_kernel_cu(const eUTIL::Tensor<int8_t>& input1,
+                   const eUTIL::Tensor<int8_t>& input2,
+                   eUTIL::Tensor<int8_t>& output, void* stream) {
+    launchAddKernel(input1, input2, output, stream);
 }
 
 }  // namespace eCEL

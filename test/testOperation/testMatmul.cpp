@@ -42,11 +42,13 @@ TEST(test_matmul, matmul_cpu_matches_reference) {
 
     Tensor<float> input(DeviceType::kCpu, 3, 2);
     Tensor<float> weight(DeviceType::kCpu, 2, 3);
+    Tensor<float> scaler(DeviceType::kCpu, 1);
     Tensor<float> output(DeviceType::kCpu, 2, 2);
+    scaler[0] = 1.f;
     fillMatmulInputs(input, weight);
 
     auto kernel = eCEL::KernelFactory::getMatmulKernel();
-    kernel(input, weight, output, 1.f, nullptr);
+    kernel(input, weight, scaler, output, 1, nullptr);
 
     expectMatmulResult(output);
 }
@@ -63,7 +65,9 @@ TEST(test_matmul, matmul_gpu_matches_cpu) {
 
     Tensor<float> cpuInput(DeviceType::kCpu, 4);
     Tensor<float> cpuWeight(DeviceType::kCpu, 4, 4);
+    Tensor<float> cpuScaler(DeviceType::kCpu, 1);
     Tensor<float> cpuOutput(DeviceType::kCpu, 4);
+    cpuScaler[0] = 1.f;
     for (int i = 0; i < 4; ++i) {
         cpuInput[i] = float(i);
     }
@@ -73,14 +77,15 @@ TEST(test_matmul, matmul_gpu_matches_cpu) {
     }
 
     auto cpuKernel = eCEL::KernelFactory::getMatmulKernel();
-    cpuKernel(cpuInput, cpuWeight, cpuOutput, 1.0f, nullptr);
+    cpuKernel(cpuInput, cpuWeight, cpuScaler, cpuOutput, 1, nullptr);
 
     Tensor<float> gpuInput = cpuInput.cuda();
     Tensor<float> gpuWeight = cpuWeight.cuda();
+    Tensor<float> gpuScaler = cpuScaler.cuda();
     Tensor<float> gpuOutput(DeviceType::kCuda, 2, 2);
 
     auto gpuKernel = eCEL::KernelFactory::getMatmulKernel();
-    gpuKernel(gpuInput, gpuWeight, gpuOutput, 1.0f, nullptr);
+    gpuKernel(gpuInput, gpuWeight, gpuScaler, gpuOutput, 1, nullptr);
     ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
 
     gpuOutput.cpu();

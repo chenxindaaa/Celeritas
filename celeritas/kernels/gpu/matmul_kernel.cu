@@ -98,9 +98,12 @@ namespace eCEL {
 template <>
 void matmulKernelCu(const eUTIL::Tensor<float>& input,
                     const eUTIL::Tensor<float>& weight,
+                    const eUTIL::Tensor<float>& scaler,
                     eUTIL::Tensor<float>& output,
-                    const float scale,
+                    int32_t group_size,
                     const eUTIL::CudaConfig* config) {
+    (void)scaler;
+    (void)group_size;
     // CHECK(input.is_empty() == false && input.dims_size() <= 2);
     // CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);
 
@@ -118,6 +121,35 @@ void matmulKernelCu(const eUTIL::Tensor<float>& input,
     } else {
         matmul_kernel_cu_fp32<128, 1><<<K, 128>>>(input.data(), weight.data(),
                                                   output.data(), M, K);
+    }
+}
+
+template <>
+void matmulKernelCu(const eUTIL::Tensor<float>& input,
+                    const eUTIL::Tensor<int8_t>& weight,
+                    const eUTIL::Tensor<float>& scaler,
+                    eUTIL::Tensor<float>& output,
+                    int32_t group_size,
+                    const eUTIL::CudaConfig* config) {
+    // CHECK(input.is_empty() == false && input.dims_size() <= 2);
+    // CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);
+
+    // CHECK(weight.is_empty() == false && weight.dims_size() == 2);
+    // CHECK(weight.device_type() == base::DeviceType::kDeviceCUDA);
+    const int32_t K = weight.getDim(0);  // row
+    const int32_t M = weight.getDim(1);  // col
+    // int packet_size = 4;
+    // CHECK_EQ(M % packet_size, 0);
+
+    // CHECK_EQ(M, input.get_dim(0));
+    if (config && config->stream) {
+        matmul_kernel_cu_fp32int8<128, 1><<<K, 128, 0, config->stream>>>(
+            input.data(), weight.data(), scaler.data(), group_size,
+            output.data(), M, K);
+    } else {
+        matmul_kernel_cu_fp32int8<128, 1><<<K, 128>>>(input.data(), weight.data(),
+                                                      scaler.data(), group_size,
+                                                      output.data(), M, K);
     }
 }
 
