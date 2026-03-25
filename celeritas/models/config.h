@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace eCEL {
 struct ModelConfig {
     int32_t dim = 0;

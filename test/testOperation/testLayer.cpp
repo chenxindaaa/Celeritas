@@ -1,241 +1,262 @@
 #include <gtest/gtest.h>
 #include <cmath>
-#include <cstdint>
-#include <random>
 
-#include "celeritas/operation/Layer.h"
+#include "celeritas/operation/AddLayer.h"
+#include "celeritas/operation/EmbLayer.h"
+#include "celeritas/operation/MatmulLayer.h"
+#include "celeritas/operation/MlpLayer.h"
+#include "celeritas/operation/RmsnormLayer.h"
+#include "celeritas/operation/SwigluLayer.h"
 #include "udm/core/Tensor.h"
 
 namespace {
 
-constexpr int32_t kVocabSize = 3;
-constexpr int32_t kEmbDim = 4;
-constexpr int32_t kTokenNum = 3;
-constexpr std::size_t kRmsCount = 256;
+void fillMatmulLayerInputs(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& weight) {
+    const float input_data[] = {1.f, 4.f, 2.f, 5.f, 3.f, 6.f};
+    const float weight_data[] = {7.f, 9.f, 11.f, 8.f, 10.f, 12.f};
 
-void fillEmbeddingInputs(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& weight) {
+    for (int i = 0; i < 6; ++i) {
+        input[i] = input_data[i];
+        weight[i] = weight_data[i];
+    }
+}
+
+void fillRmsnormLayerInputs(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& weight) {
+    const float input_data[] = {1.f, 2.f, 3.f, 4.f};
+    const float weight_data[] = {0.5f, 1.5f, 2.0f, 0.25f};
+
+    for (int i = 0; i < 4; ++i) {
+        input[i] = input_data[i];
+        weight[i] = weight_data[i];
+    }
+}
+
+void fillAddLayerInputs(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& value) {
+    const float input_data[] = {1.f, 2.f, 3.f, 4.f};
+    const float value_data[] = {0.5f, 1.5f, -2.f, 0.25f};
+
+    for (int i = 0; i < 4; ++i) {
+        input[i] = input_data[i];
+        value[i] = value_data[i];
+    }
+}
+
+void fillEmbLayerInputs(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& weight) {
     input[0] = 2.f;
     input[1] = 0.f;
     input[2] = 1.f;
 
-    const float weightData[kVocabSize * kEmbDim] = {
+    const float weight_data[] = {
         1.f, 2.f, 3.f, 4.f,
         5.f, 6.f, 7.f, 8.f,
         9.f, 10.f, 11.f, 12.f
     };
-    for (int i = 0; i < kVocabSize * kEmbDim; ++i) {
-        weight[i] = weightData[i];
+
+    for (int i = 0; i < 12; ++i) {
+        weight[i] = weight_data[i];
     }
 }
 
-void expectEmbeddingOutput(const eUTIL::Tensor<float>& output) {
-    const float expected[kTokenNum * kEmbDim] = {
-        9.f, 10.f, 11.f, 12.f,
-        1.f, 2.f, 3.f, 4.f,
-        5.f, 6.f, 7.f, 8.f
-    };
-    for (int i = 0; i < kTokenNum * kEmbDim; ++i) {
-        ASSERT_NEAR(output.data()[i], expected[i], 1e-5f);
+float swigluLayerReference(float input1, float input2) {
+    const float sigmoid = 1.0f / (1.0f + std::exp(-input1));
+    return input1 * sigmoid * input2;
+}
+
+void fillSwigluLayerInputs(eUTIL::Tensor<float>& input1, eUTIL::Tensor<float>& input2) {
+    const float input1_data[] = {-3.0f, -1.5f, -0.5f, 0.0f, 0.5f, 1.5f, 3.0f, 6.0f};
+    const float input2_data[] = {2.0f, -4.0f, 1.5f, 3.0f, -2.0f, 0.5f, 1.0f, -1.0f};
+
+    for (int i = 0; i < 8; ++i) {
+        input1[i] = input1_data[i];
+        input2[i] = input2_data[i];
     }
 }
 
-void fillMatmulExample(eUTIL::Tensor<float>& input, eUTIL::Tensor<float>& weight) {
-    const float inputData[] = {1.f, 4.f, 2.f, 5.f, 3.f, 6.f};
-    const float weightData[] = {7.f, 9.f, 11.f, 8.f, 10.f, 12.f};
-    for (int i = 0; i < 6; ++i) {
-        input[i] = inputData[i];
-        weight[i] = weightData[i];
-    }
+float siluReference(float x) {
+    return x / (1.0f + std::exp(-x));
 }
 
 }  // namespace
 
-TEST(test_layer, add_layer_forward_cpu) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<float> input1(DeviceType::kCpu, 4);
-    Tensor<float> input2(DeviceType::kCpu, 4);
-    Tensor<float> output(DeviceType::kCpu, 4);
-
-    input1[0] = 1;
-    input1[1] = 2;
-    input1[2] = 3;
-    input1[3] = 4;
-    input2[0] = 10;
-    input2[1] = 20;
-    input2[2] = 30;
-    input2[3] = 40;
-
-    eCEL::AddLayer layer(DeviceType::kCpu);
-    EXPECT_EQ(layer.type(), eCEL::LayerType::kAdd);
-    EXPECT_FALSE(layer.hasWeight());
-    EXPECT_EQ(layer.inputCount(), 2U);
-    EXPECT_EQ(layer.outputCount(), 1U);
-    EXPECT_EQ(layer.weightCount(), 0U);
-
-    layer.setInput(0, input1);
-    layer.setInput(1, input2);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kOk);
-    EXPECT_EQ(output[0], 11);
-    EXPECT_EQ(output[1], 22);
-    EXPECT_EQ(output[2], 33);
-    EXPECT_EQ(output[3], 44);
-}
-
-TEST(test_layer, add_layer_missing_input_returns_invalid_argument) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<int8_t> input1(DeviceType::kCpu, 2);
-    Tensor<int8_t> output(DeviceType::kCpu, 2);
-
-    eCEL::AddLayer layer(DeviceType::kCpu);
-    layer.setInput(0, input1);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kInvalidArgument);
-}
-
-TEST(test_layer, embedding_layer_forward_cpu) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<float> input(DeviceType::kCpu, kTokenNum);
-    Tensor<float> weight(DeviceType::kCpu, kVocabSize, kEmbDim);
-    Tensor<float> output(DeviceType::kCpu, kTokenNum, kEmbDim);
-    fillEmbeddingInputs(input, weight);
-
-    eCEL::EmbeddingLayer layer(DeviceType::kCpu, kVocabSize);
-    EXPECT_EQ(layer.type(), eCEL::LayerType::kEmb);
-    EXPECT_TRUE(layer.hasWeight());
-    EXPECT_EQ(layer.inputCount(), 1U);
-    EXPECT_EQ(layer.outputCount(), 1U);
-    EXPECT_EQ(layer.weightCount(), 1U);
-    EXPECT_EQ(layer.vocabSize(), kVocabSize);
-
-    layer.setInput(0, input);
-    layer.setWeight(0, weight);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kOk);
-    expectEmbeddingOutput(output);
-}
-
-TEST(test_layer, embedding_layer_missing_weight_returns_invalid_argument) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<float> input(DeviceType::kCpu, kTokenNum);
-    Tensor<float> output(DeviceType::kCpu, kTokenNum, kEmbDim);
-
-    eCEL::EmbeddingLayer layer(DeviceType::kCpu, kVocabSize);
-    layer.setInput(0, input);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kInvalidArgument);
-}
-
-TEST(test_layer, rmsnorm_layer_forward_cpu) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<float> input(DeviceType::kCpu, kRmsCount);
-    Tensor<float> weight(DeviceType::kCpu, kRmsCount);
-    Tensor<float> output(DeviceType::kCpu, kRmsCount);
-
-    std::mt19937 rng(123);
-    std::uniform_real_distribution<float> dist(0.f, 1.f);
-    for (std::size_t i = 0; i < kRmsCount; ++i) {
-        input[static_cast<int>(i)] = dist(rng);
-        weight[static_cast<int>(i)] = dist(rng);
-    }
-
-    eCEL::RmsNormLayer layer(DeviceType::kCpu);
-    EXPECT_EQ(layer.type(), eCEL::LayerType::kRms);
-    EXPECT_TRUE(layer.hasWeight());
-    EXPECT_EQ(layer.inputCount(), 1U);
-    EXPECT_EQ(layer.outputCount(), 1U);
-    EXPECT_EQ(layer.weightCount(), 1U);
-
-    layer.setInput(0, input);
-    layer.setWeight(0, weight);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kOk);
-
-    float meanSquare = 0.f;
-    for (std::size_t i = 0; i < kRmsCount; ++i) {
-        meanSquare += input[static_cast<int>(i)] * input[static_cast<int>(i)];
-    }
-    meanSquare /= static_cast<float>(kRmsCount);
-#if defined(QWEN2_SUPPORT) || defined(QWEN3_SUPPORT)
-    const float eps = 1e-6f;
-#else
-    const float eps = 1e-5f;
-#endif
-    const float invRms = 1.f / std::sqrt(meanSquare + eps);
-    for (std::size_t i = 0; i < kRmsCount; ++i) {
-        const float expected =
-            weight[static_cast<int>(i)] * input[static_cast<int>(i)] * invRms;
-        ASSERT_NEAR(output[static_cast<int>(i)], expected, 1e-5f);
-    }
-}
-
-TEST(test_layer, rmsnorm_layer_missing_weight_returns_invalid_argument) {
-    using eUTIL::DeviceType;
-    using eUTIL::Tensor;
-
-    Tensor<float> input(DeviceType::kCpu, kRmsCount);
-    Tensor<float> output(DeviceType::kCpu, kRmsCount);
-
-    eCEL::RmsNormLayer layer(DeviceType::kCpu);
-    layer.setInput(0, input);
-    layer.setOutput(0, output);
-
-    EXPECT_EQ(layer.forward(), eCEL::Status::kInvalidArgument);
-}
-
-TEST(test_layer, matmult_layer_forward_cpu) {
+TEST(test_layer, matmul_layer_forward_cpu_matches_reference) {
     using eUTIL::DeviceType;
     using eUTIL::Tensor;
 
     Tensor<float> input(DeviceType::kCpu, 3, 2);
     Tensor<float> weight(DeviceType::kCpu, 2, 3);
+    Tensor<float> scaler(DeviceType::kCpu);
     Tensor<float> output(DeviceType::kCpu, 2, 2);
-    fillMatmulExample(input, weight);
+    fillMatmulLayerInputs(input, weight);
 
-    eCEL::MatmultLayer layer(DeviceType::kCpu, 0.5f);
-    EXPECT_EQ(layer.type(), eCEL::LayerType::kMatmul);
-    EXPECT_TRUE(layer.hasWeight());
-    EXPECT_EQ(layer.inputCount(), 1U);
-    EXPECT_EQ(layer.outputCount(), 1U);
-    EXPECT_EQ(layer.weightCount(), 1U);
-    EXPECT_FLOAT_EQ(layer.scale(), 0.5f);
+    eCEL::Parameter<float> weight_param(weight, "weight");
+    eCEL::Parameter<float> scaler_param(scaler, "scaler");
+    eCEL::MatmulLayer<float, float> layer(DeviceType::kCpu,
+                                          std::move(weight_param),
+                                          std::move(scaler_param),
+                                          1);
 
-    layer.setInput(0, input);
-    layer.setWeight(0, weight);
-    layer.setOutput(0, output);
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input, output);
 
-    EXPECT_EQ(layer.forward(), eCEL::Status::kOk);
-    EXPECT_NEAR(output[0], 29.f, 1e-5f);
-    EXPECT_NEAR(output[1], 69.5f, 1e-5f);
-    EXPECT_NEAR(output[2], 32.f, 1e-5f);
-    EXPECT_NEAR(output[3], 77.f, 1e-5f);
+    const float expected[] = {58.f, 139.f, 64.f, 154.f};
+    for (int i = 0; i < 4; ++i) {
+        ASSERT_NEAR(output[i], expected[i], 1e-5f);
+    }
 }
 
-TEST(test_layer, matmult_layer_missing_weight_returns_invalid_argument) {
+TEST(test_layer, rmsnorm_layer_forward_cpu_matches_reference) {
     using eUTIL::DeviceType;
     using eUTIL::Tensor;
 
-    Tensor<float> input(DeviceType::kCpu, 3, 2);
-    Tensor<float> output(DeviceType::kCpu, 2, 2);
+    Tensor<float> input(DeviceType::kCpu, 4);
+    Tensor<float> weight(DeviceType::kCpu, 4);
+    Tensor<float> output(DeviceType::kCpu, 4);
+    fillRmsnormLayerInputs(input, weight);
 
-    eCEL::MatmultLayer layer(DeviceType::kCpu);
-    layer.setInput(0, input);
-    layer.setOutput(0, output);
+    eCEL::Parameter<float> weight_param(weight, "weight");
+    eCEL::RmsnormLayer<float, float> layer(DeviceType::kCpu, std::move(weight_param));
 
-    EXPECT_EQ(layer.forward(), eCEL::Status::kInvalidArgument);
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input, output);
+
+    float mean_square = 0.f;
+    for (int i = 0; i < 4; ++i) {
+        mean_square += input[i] * input[i];
+    }
+    mean_square /= 4.f;
+#if defined(QWEN2_SUPPORT) || defined(QWEN3_SUPPORT)
+    const float eps = 1e-6f;
+#else
+    const float eps = 1e-5f;
+#endif
+    const float inv_rms = 1.f / std::sqrt(mean_square + eps);
+
+    for (int i = 0; i < 4; ++i) {
+        const float expected = weight[i] * input[i] * inv_rms;
+        ASSERT_NEAR(output[i], expected, 1e-5f);
+    }
+}
+
+TEST(test_layer, add_layer_forward_cpu_matches_reference) {
+    using eUTIL::DeviceType;
+    using eUTIL::Tensor;
+
+    Tensor<float> input(DeviceType::kCpu, 4);
+    Tensor<float> value(DeviceType::kCpu, 4);
+    Tensor<float> output(DeviceType::kCpu, 4);
+    fillAddLayerInputs(input, value);
+
+    eCEL::Parameter<float> value_param(value, "value");
+    eCEL::AddLayer<float> layer(DeviceType::kCpu, std::move(value_param));
+
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input, output);
+
+    for (int i = 0; i < 4; ++i) {
+        ASSERT_NEAR(output[i], input[i] + value[i], 1e-5f);
+    }
+}
+
+TEST(test_layer, emb_layer_forward_cpu_matches_reference) {
+    using eUTIL::DeviceType;
+    using eUTIL::Tensor;
+
+    constexpr int32_t kVocabSize = 3;
+    constexpr int32_t kEmbDim = 4;
+    constexpr int32_t kTokenNum = 3;
+
+    Tensor<float> input(DeviceType::kCpu, kTokenNum);
+    Tensor<float> weight(DeviceType::kCpu, kVocabSize, kEmbDim);
+    Tensor<float> output(DeviceType::kCpu, kTokenNum, kEmbDim);
+    fillEmbLayerInputs(input, weight);
+
+    eCEL::Parameter<float> weight_param(weight, "weight");
+    eCEL::EmbLayer<float, float> layer(DeviceType::kCpu, std::move(weight_param), kVocabSize);
+
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input, output);
+
+    const float expected[] = {
+        9.f, 10.f, 11.f, 12.f,
+        1.f, 2.f, 3.f, 4.f,
+        5.f, 6.f, 7.f, 8.f
+    };
+
+    for (int i = 0; i < kTokenNum * kEmbDim; ++i) {
+        ASSERT_NEAR(output[i], expected[i], 1e-5f);
+    }
+}
+
+TEST(test_layer, swiglu_layer_forward_cpu_matches_reference) {
+    using eUTIL::DeviceType;
+    using eUTIL::Tensor;
+
+    Tensor<float> input1(DeviceType::kCpu, 8);
+    Tensor<float> input2(DeviceType::kCpu, 8);
+    Tensor<float> output(DeviceType::kCpu, 8);
+    fillSwigluLayerInputs(input1, input2);
+
+    eCEL::Parameter<float> value_param(input2, "value");
+    eCEL::SwigluLayer<float> layer(DeviceType::kCpu, std::move(value_param));
+
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input1, output);
+
+    for (int i = 0; i < 8; ++i) {
+        ASSERT_NEAR(output[i], swigluLayerReference(input1[i], input2[i]), 1e-5f);
+    }
+}
+
+TEST(test_layer, mlp_layer_forward_cpu_matches_reference) {
+    using eUTIL::DeviceType;
+    using eUTIL::Tensor;
+
+    Tensor<float> input(DeviceType::kCpu, 2);
+    input[0] = 1.0f;
+    input[1] = -2.0f;
+
+    Tensor<float> gate_weight(DeviceType::kCpu, 2, 2);
+    Tensor<float> up_weight(DeviceType::kCpu, 2, 2);
+    Tensor<float> down_weight(DeviceType::kCpu, 2, 2);
+    Tensor<float> empty_scaler(DeviceType::kCpu);
+    Tensor<float> output(DeviceType::kCpu, 2);
+
+    gate_weight[0] = 1.0f;  gate_weight[1] = 0.0f;
+    gate_weight[2] = 0.0f;  gate_weight[3] = 1.0f;
+
+    up_weight[0] = 2.0f;    up_weight[1] = 0.0f;
+    up_weight[2] = 0.0f;    up_weight[3] = -1.0f;
+
+    down_weight[0] = 1.0f;  down_weight[1] = 0.0f;
+    down_weight[2] = 0.0f;  down_weight[3] = 1.0f;
+
+    eCEL::MlpParams<float> params(
+        eCEL::MatmulParams<float>(
+            eCEL::Parameter<float>(gate_weight, "w1"),
+            eCEL::Parameter<float>(empty_scaler, "w1_scale"),
+            1),
+        eCEL::MatmulParams<float>(
+            eCEL::Parameter<float>(down_weight, "w2"),
+            eCEL::Parameter<float>(empty_scaler, "w2_scale"),
+            1),
+        eCEL::MatmulParams<float>(
+            eCEL::Parameter<float>(up_weight, "w3"),
+            eCEL::Parameter<float>(empty_scaler, "w3_scale"),
+            1));
+    eCEL::MlpLayer<float, float> layer(DeviceType::kCpu, std::move(params));
+
+    eCEL::ForwardContext ctx;
+    layer.forward(ctx, input, output);
+
+    const float gate0 = 1.0f;
+    const float gate1 = -2.0f;
+    const float up0 = 2.0f;
+    const float up1 = 2.0f;
+    const float hidden0 = siluReference(gate0) * up0;
+    const float hidden1 = siluReference(gate1) * up1;
+    const float expected0 = input[0] + hidden0;
+    const float expected1 = input[1] + hidden1;
+
+    ASSERT_NEAR(output[0], expected0, 1e-5f);
+    ASSERT_NEAR(output[1], expected1, 1e-5f);
 }

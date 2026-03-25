@@ -1,205 +1,111 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <stdexcept>
 #include <string>
 #include <utility>
-#include <vector>
 
-#include "celeritas/kernels/KernelFactory.h"
-#include "celeritas/kernels/KernelRegistry.h"
+#include "udm/common/cudaConfig.h"
 #include "udm/core/Tensor.h"
 
 namespace eCEL {
 
-enum class Status {
-    kOk = 0,
-    kInvalidArgument = 1,
-    kRuntimeError = 2,
+using Tensor = eUTIL::Tensor<float>;
+
+class Workspace {
+public:
+    virtual ~Workspace() = default;
 };
 
-using LayerType = OpType;
+class KVCacheView {
+public:
+    virtual ~KVCacheView() = default;
+};
+
+struct ForwardContext {
+    eUTIL::CudaConfig* cuda_config = nullptr;
+    int batch_size = 0;
+    int q_len = 0;
+    int kv_len = 0;
+    bool is_prefill = false;
+    bool is_decode = false;
+    int layer_id = -1;
+    Workspace* workspace = nullptr;
+    KVCacheView* kv_cache = nullptr;
+};
 
 class Layer {
 public:
-    Layer(eUTIL::DeviceType device,
-          LayerType type,
-          std::size_t inputCount,
-          std::size_t outputCount,
-          std::size_t weightCount = 0,
-          std::string name = "");
+    explicit Layer(eUTIL::DeviceType device) : m_device(device) {}
     virtual ~Layer() = default;
 
-    Layer(const Layer&) = delete;
-    Layer& operator=(const Layer&) = delete;
-
-    virtual Status forward() = 0;
-
-    eUTIL::DeviceType device() const { return m_device; }
-    LayerType type() const { return m_type; }
-    const std::string& name() const { return m_name; }
-    void setName(const std::string& name) { m_name = name; }
-
-    std::size_t inputCount() const { return m_inputs.size(); }
-    std::size_t outputCount() const { return m_outputs.size(); }
-    std::size_t weightCount() const { return m_weights.size(); }
-    bool hasWeight() const { return !m_weights.empty(); }
-
-    template <typename T>
-    void setInput(std::size_t index, const eUTIL::Tensor<T>& tensor) {
-        if (index >= m_inputs.size()) {
-            throw std::out_of_range("input index out of range");
-        }
-        m_inputs[index] = makeConstBinding(tensor);
-    }
-
-    template <typename T>
-    void setOutput(std::size_t index, eUTIL::Tensor<T>& tensor) {
-        if (index >= m_outputs.size()) {
-            throw std::out_of_range("output index out of range");
-        }
-        m_outputs[index] = makeMutableBinding(tensor);
-    }
-
-    template <typename T>
-    void setWeight(std::size_t index, const eUTIL::Tensor<T>& tensor) {
-        if (index >= m_weights.size()) {
-            throw std::out_of_range("weight index out of range");
-        }
-        m_weights[index] = makeConstBinding(tensor);
-    }
-
-protected:
-    struct ConstTensorBinding {
-        const void* tensor = nullptr;
-        eUTIL::DType dtype = eUTIL::DType::kUnknown;
-        eUTIL::DeviceType device = eUTIL::DeviceType::kUnknown;
-    };
-
-    struct MutableTensorBinding {
-        void* tensor = nullptr;
-        eUTIL::DType dtype = eUTIL::DType::kUnknown;
-        eUTIL::DeviceType device = eUTIL::DeviceType::kUnknown;
-    };
-
-    void validateBindings() const;
-
-    eUTIL::DType inputDType(std::size_t index) const;
-    eUTIL::DType outputDType(std::size_t index) const;
-    eUTIL::DType weightDType(std::size_t index) const;
-
-    template <typename T>
-    const eUTIL::Tensor<T>& input(std::size_t index) const {
-        return accessConstTensor<T>(m_inputs, index, "input");
-    }
-
-    template <typename T>
-    eUTIL::Tensor<T>& output(std::size_t index) const {
-        return accessMutableTensor<T>(m_outputs, index, "output");
-    }
-
-    template <typename T>
-    const eUTIL::Tensor<T>& weight(std::size_t index) const {
-        return accessConstTensor<T>(m_weights, index, "weight");
-    }
+    virtual void forward(const ForwardContext& ctx,
+                         const Tensor& input,
+                         Tensor& output) = 0;
 
 protected:
     eUTIL::DeviceType m_device;
-    LayerType m_type;
+};
+
+template <typename T>
+class Parameter {
+public:
+    Parameter() = default;
+
+    Parameter(eUTIL::Tensor<T> parameter, std::string name = "")
+        : m_parameter(std::move(parameter)),
+          m_name(std::move(name)) {}
+
+    const eUTIL::Tensor<T>& view() const { return m_parameter; }
+    eUTIL::Tensor<T>& view() { return m_parameter; }
+
+    const std::string& name() const { return m_name; }
+
+private:
+    eUTIL::Tensor<T> m_parameter;
     std::string m_name;
-    std::vector<ConstTensorBinding> m_inputs;
-    std::vector<MutableTensorBinding> m_outputs;
-    std::vector<ConstTensorBinding> m_weights;
-
-private:
-    static void validateTensorList(const std::vector<ConstTensorBinding>& tensors, const char* label);
-    static void validateTensorList(const std::vector<MutableTensorBinding>& tensors, const char* label);
-
-    template <typename T>
-    static ConstTensorBinding makeConstBinding(const eUTIL::Tensor<T>& tensor) {
-        return ConstTensorBinding{&tensor, tensor.dtype(), tensor.device()};
-    }
-
-    template <typename T>
-    static MutableTensorBinding makeMutableBinding(eUTIL::Tensor<T>& tensor) {
-        return MutableTensorBinding{&tensor, tensor.dtype(), tensor.device()};
-    }
-
-    template <typename T>
-    static const eUTIL::Tensor<T>& accessConstTensor(const std::vector<ConstTensorBinding>& tensors,
-                                                     std::size_t index,
-                                                     const char* label) {
-        if (index >= tensors.size() || tensors[index].tensor == nullptr) {
-            throw std::invalid_argument(std::string(label) + " tensor is not set");
-        }
-        if (tensors[index].dtype != eUTIL::DTypeTrait<T>::kValue) {
-            throw std::invalid_argument(std::string(label) + " tensor dtype mismatch");
-        }
-        return *static_cast<const eUTIL::Tensor<T>*>(tensors[index].tensor);
-    }
-
-    template <typename T>
-    static eUTIL::Tensor<T>& accessMutableTensor(const std::vector<MutableTensorBinding>& tensors,
-                                                 std::size_t index,
-                                                 const char* label) {
-        if (index >= tensors.size() || tensors[index].tensor == nullptr) {
-            throw std::invalid_argument(std::string(label) + " tensor is not set");
-        }
-        if (tensors[index].dtype != eUTIL::DTypeTrait<T>::kValue) {
-            throw std::invalid_argument(std::string(label) + " tensor dtype mismatch");
-        }
-        return *static_cast<eUTIL::Tensor<T>*>(tensors[index].tensor);
-    }
 };
 
-class AddLayer final : public Layer {
-public:
-    explicit AddLayer(eUTIL::DeviceType device, std::string name = "AddLayer");
-    Status forward() override;
-};
 
-class EmbeddingLayer final : public Layer {
-public:
-    explicit EmbeddingLayer(eUTIL::DeviceType device,
-                            int32_t vocabSize,
-                            std::string name = "EmbeddingLayer");
 
-    void setVocabSize(int32_t vocabSize) { m_vocabSize = vocabSize; }
-    int32_t vocabSize() const { return m_vocabSize; }
+// class SelfAttentionLayer : public Layer {
+// public:
+//     SelfAttentionLayer() = default;
 
-    Status forward() override;
+//     void forward(const ForwardContext& ctx,
+//                  const Tensor& input,
+//                  Tensor& output) override;
+// };
 
-private:
-    int32_t m_vocabSize;
-};
+// class MLPBlockLayer : public Layer {
+// public:
+//     MLPBlockLayer() = default;
 
-class RmsNormLayer final : public Layer {
-public:
-    explicit RmsNormLayer(eUTIL::DeviceType device, std::string name = "RmsNormLayer");
-    Status forward() override;
-};
+//     void forward(const ForwardContext& ctx,
+//                  const Tensor& input,
+//                  Tensor& output) override;
+// };
 
-class MatmultLayer final : public Layer {
-public:
-    explicit MatmultLayer(eUTIL::DeviceType device,
-                          float scale = 1.f,
-                          std::string name = "MatmultLayer");
+// class DecoderLayer : public Layer {
+// public:
+//     DecoderLayer(RMSNormLayer attn_norm,
+//                  SelfAttentionLayer self_attn,
+//                  RMSNormLayer ffn_norm,
+//                  MLPBlockLayer mlp)
+//         : attn_norm_(std::move(attn_norm)),
+//           self_attn_(std::move(self_attn)),
+//           ffn_norm_(std::move(ffn_norm)),
+//           mlp_(std::move(mlp)) {}
 
-    void setScale(float scale) { m_scale = scale; }
-    float scale() const { return m_scale; }
-    void setGroupSize(int32_t groupSize) { m_groupSize = groupSize; }
-    int32_t groupSize() const { return m_groupSize; }
+//     void forward(const ForwardContext& ctx,
+//                  const Tensor& input,
+//                  Tensor& output) override;
 
-    void setCudaConfig(const eUTIL::CudaConfig* config) { m_cudaConfig = config; }
-    const eUTIL::CudaConfig* cudaConfig() const { return m_cudaConfig; }
+// private:
+//     RMSNormLayer attn_norm_;
+//     SelfAttentionLayer self_attn_;
+//     RMSNormLayer ffn_norm_;
+//     MLPBlockLayer mlp_;
+// };
 
-    Status forward() override;
 
-private:
-    float m_scale;
-    int32_t m_groupSize;
-    const eUTIL::CudaConfig* m_cudaConfig;
-};
 
 }  // namespace eCEL

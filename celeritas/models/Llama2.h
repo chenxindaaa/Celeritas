@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Model.h"
+#include "../operation/EmbLayer.h"
 #include "../operation/Layer.h"
 #include "udm/core/Tensor.h"
 
@@ -18,5 +19,10 @@ public:
 protected:
     void createLayers() override;
     void createEmb();
+
+private:
+    std::unique_ptr<Tensor> m_embInput;
+    std::unique_ptr<Tensor> m_embOutput;
+    std::unique_ptr<EmbLayer<float, float>> m_embLayer;
 };
 }  // namespace eCEL

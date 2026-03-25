@@ -20,6 +20,7 @@ public:
     static_assert(DTypeTrait<T>::kValue != DType::kUnknown,
                     "Unsupported tensor dtype");
 
+    explicit Tensor(DeviceType device);
     Tensor(DeviceType device, std::initializer_list<std::size_t> dims);
     Tensor(DeviceType device,
            std::initializer_list<std::size_t> dims,

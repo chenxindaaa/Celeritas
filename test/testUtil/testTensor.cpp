@@ -71,6 +71,24 @@ TEST(test_tensor, tensor_dtype_matches_template_type) {
     EXPECT_EQ(tFloat.dtype(), DType::kFloat32);
 }
 
+TEST(test_tensor, empty_tensor_can_be_created_from_device_only) {
+    Tensor<float> cpuEmpty(DeviceType::kCpu);
+    Tensor<int8_t> cudaEmpty(DeviceType::kCuda);
+
+    EXPECT_TRUE(cpuEmpty.empty());
+    EXPECT_TRUE(cudaEmpty.empty());
+    EXPECT_EQ(cpuEmpty.size(), 0);
+    EXPECT_EQ(cudaEmpty.size(), 0);
+    EXPECT_TRUE(cpuEmpty.dims().empty());
+    EXPECT_TRUE(cudaEmpty.dims().empty());
+    EXPECT_EQ(cpuEmpty.device(), DeviceType::kCpu);
+    EXPECT_EQ(cudaEmpty.device(), DeviceType::kCuda);
+    EXPECT_EQ(cpuEmpty.dtype(), DType::kFloat32);
+    EXPECT_EQ(cudaEmpty.dtype(), DType::kInt8);
+    EXPECT_EQ(cpuEmpty.data(), nullptr);
+    EXPECT_EQ(cudaEmpty.data(), nullptr);
+}
+
 TEST(test_tensor, tensor_dtype_survives_copy_move_and_device_convert) {
     Tensor<float> a(DeviceType::kCpu, 8);
     EXPECT_EQ(a.dtype(), DType::kFloat32);
@@ -237,4 +255,3 @@ TEST(test_tensor, tensor_non_external_data_is_deep_copied) {
 
     delete[] raw;
 }
-

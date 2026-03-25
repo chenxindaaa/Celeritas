@@ -6,6 +6,12 @@ add_library(celeritas STATIC
   kernels/KernelRegistry.cpp
   kernels/KernelFactory.cpp
   operation/Layer.cpp
+  operation/AddLayer.cpp
+  operation/EmbLayer.cpp
+  operation/MatmulLayer.cpp
+  operation/MlpLayer.cpp
+  operation/RmsnormLayer.cpp
+  operation/SwigluLayer.cpp
   kernels/gpu/add.cu
   kernels/gpu/emb_kernel.cu
   kernels/gpu/matmul_kernel.cu

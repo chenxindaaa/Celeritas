@@ -79,6 +79,19 @@ std::size_t Tensor<T>::calcSize(std::initializer_list<std::size_t> dims) {
 }
 
 template <typename T>
+Tensor<T>::Tensor(DeviceType device)
+    : m_size(0),
+      m_dims(),
+      m_device(device),
+      m_dtype(DTypeTrait<T>::kValue),
+      m_data(nullptr),
+      m_control(nullptr) {
+    if (m_device == DeviceType::kUnknown) {
+        throw std::invalid_argument("Tensor device cannot be kUnknown");
+    }
+}
+
+template <typename T>
 Tensor<T>::Tensor(DeviceType device, std::initializer_list<std::size_t> dims)
     : m_size(calcSize(dims)),
       m_dims(dims),

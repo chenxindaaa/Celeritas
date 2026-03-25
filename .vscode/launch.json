@@ -65,7 +65,8 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["/home/cxd/Celeritas/tmp/stories15M.bin", "--checkpoint", "/home/cxd/Celeritas/models/stories15M.pt"],
+            // "args": ["/home/cxd/Celeritas/tmp/stories15M.bin", "--checkpoint", "/home/cxd/Celeritas/models/stories15M.pt"],
+            "args": [],
             "console": "integratedTerminal"
         }
     ]
