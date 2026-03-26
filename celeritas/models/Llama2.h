@@ -13,9 +13,10 @@ class Llama2 : public Model
 {
 public:
     virtual ~Llama2() override = default;
-    Llama2(std::string checkPointPath, std::string tokenizerPath, 
+    Llama2(std::string checkpointPath, std::string tokenizerPath,
           eUTIL::DeviceType device = eUTIL::DeviceType::kCpu):
-          Model(checkPointPath, tokenizerPath, device) {}
+          Model(checkpointPath, tokenizerPath, device) {}
+    std::vector<float> forward(const ModelInputs& inputs) const override;
 protected:
     void createLayers() override;
     void createEmb();

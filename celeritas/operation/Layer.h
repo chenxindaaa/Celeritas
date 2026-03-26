@@ -75,15 +75,6 @@ private:
 //                  Tensor& output) override;
 // };
 
-// class MLPBlockLayer : public Layer {
-// public:
-//     MLPBlockLayer() = default;
-
-//     void forward(const ForwardContext& ctx,
-//                  const Tensor& input,
-//                  Tensor& output) override;
-// };
-
 // class DecoderLayer : public Layer {
 // public:
 //     DecoderLayer(RMSNormLayer attn_norm,

@@ -1,8 +1,22 @@
 cmake_minimum_required(VERSION 3.18)
 
+find_path(SENTENCEPIECE_INCLUDE_DIR
+  NAMES sentencepiece_processor.h
+  HINTS /usr/local/include /usr/include
+)
+find_library(SENTENCEPIECE_LIBRARY
+  NAMES sentencepiece
+  HINTS /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu
+)
+
 add_library(celeritas STATIC
   models/Model.cpp
   models/Llama2.cpp
+  engine/LLMEgine.cpp
+  tokenizer/Tokenizer.cpp
+  tokenizer/BpeTokenizer.cpp
+  tokenizer/SentencePieceTokenizer.cpp
+  tokenizer/HfTokenizerAdapter.cpp
   kernels/KernelRegistry.cpp
   kernels/KernelFactory.cpp
   operation/Layer.cpp
@@ -35,6 +49,7 @@ target_link_libraries(celeritas
   PUBLIC
     udm
     CUDA::cudart
+    ${SENTENCEPIECE_LIBRARY}
     ${ARMADILLO_LIBRARIES}
     BLAS::BLAS
     LAPACK::LAPACK
@@ -42,6 +57,7 @@ target_link_libraries(celeritas
 
 target_include_directories(celeritas
   SYSTEM PUBLIC
+    ${SENTENCEPIECE_INCLUDE_DIR}
     ${ARMADILLO_INCLUDE_DIRS}
 )
 

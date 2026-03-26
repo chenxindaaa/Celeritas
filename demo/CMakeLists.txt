@@ -8,6 +8,13 @@ target_link_libraries(celeritas_story
     celeritas
 )
 
+if (EXISTS "/usr/local/cuda/lib64")
+  target_link_options(celeritas_story
+    PRIVATE
+      -L/usr/local/cuda/lib64
+  )
+endif()
+
 target_compile_options(celeritas_story
   PRIVATE
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g;-O0>

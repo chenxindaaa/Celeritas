@@ -4,34 +4,40 @@ namespace eCEL{
 
 void Model::init()
 {
-    readCheckPoint();
+    readCheckpoint();
     createLayers();
 }
 
-void Model::readCheckPoint()
+std::vector<float> Model::forward(const ModelInputs& inputs) const
+{
+    (void)inputs;
+    throw std::runtime_error("Model::forward(ModelInputs) is not implemented for this model");
+}
+
+void Model::readCheckpoint()
 {
     auto fileData = std::make_unique<model::RawModelDataFp32>();
-    fileData->fd = open(m_checkPointPath.c_str(), O_RDONLY);
+    fileData->fd = open(m_checkpointPath.c_str(), O_RDONLY);
     if (fileData->fd == -1) {
-        throw std::runtime_error("failed to open checkpoint: " + m_checkPointPath);
+        throw std::runtime_error("failed to open checkpoint: " + m_checkpointPath);
     }
 
     const off_t fileSize = lseek(fileData->fd, 0, SEEK_END);
     if (fileSize == -1) {
-        throw std::runtime_error("failed to get checkpoint size: " + m_checkPointPath);
+        throw std::runtime_error("failed to get checkpoint size: " + m_checkpointPath);
     }
     if (lseek(fileData->fd, 0, SEEK_SET) == -1) {
-        throw std::runtime_error("failed to reset checkpoint offset: " + m_checkPointPath);
+        throw std::runtime_error("failed to reset checkpoint offset: " + m_checkpointPath);
     }
 
     fileData->file_size = static_cast<size_t>(fileSize);
     fileData->data = mmap(nullptr, fileData->file_size, PROT_READ, MAP_PRIVATE, fileData->fd, 0);
     if (fileData->data == MAP_FAILED) {
         fileData->data = nullptr;
-        throw std::runtime_error("failed to mmap checkpoint: " + m_checkPointPath);
+        throw std::runtime_error("failed to mmap checkpoint: " + m_checkpointPath);
     }
     if (fileData->file_size < sizeof(ModelConfig)) {
-        throw std::runtime_error("checkpoint is smaller than ModelConfig: " + m_checkPointPath);
+        throw std::runtime_error("checkpoint is smaller than ModelConfig: " + m_checkpointPath);
     }
 
     ModelConfig config{};

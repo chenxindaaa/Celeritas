@@ -4,6 +4,47 @@
 
 namespace eCEL {
 
+std::vector<float> Llama2::forward(const ModelInputs& inputs) const
+{
+    if (m_embLayer == nullptr) {
+        throw std::runtime_error("embedding layer is not initialized");
+    }
+    if (inputs.m_inputIds.empty()) {
+        throw std::invalid_argument("Llama2::forward requires non-empty input_ids");
+    }
+    if (static_cast<int32_t>(inputs.m_inputIds.size()) > m_config.seq_len_) {
+        throw std::invalid_argument("input_ids exceed model sequence length");
+    }
+
+    const std::size_t tokenCount = inputs.m_inputIds.size();
+    const std::size_t hiddenSize = static_cast<std::size_t>(m_config.dim_);
+
+    Tensor input(eUTIL::DeviceType::kCpu, tokenCount);
+    for (std::size_t i = 0; i < tokenCount; ++i) {
+        input[static_cast<int>(i)] = static_cast<float>(inputs.m_inputIds[i]);
+    }
+
+    Tensor output(m_device, tokenCount, hiddenSize);
+    if (m_device == eUTIL::DeviceType::kCuda) {
+        input.cuda();
+    }
+
+    ForwardContext ctx;
+    m_embLayer->forward(ctx, input, output);
+
+    if (m_device == eUTIL::DeviceType::kCuda) {
+        output.cpu();
+    }
+
+    std::vector<float> embeddings(output.size());
+    const float* outputData = output.data();
+    for (std::size_t i = 0; i < output.size(); ++i) {
+        embeddings[i] = outputData[i];
+    }
+
+    return embeddings;
+}
+
 void Llama2::createLayers()
 {
     createEmb();

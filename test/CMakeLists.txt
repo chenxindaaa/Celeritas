@@ -13,6 +13,8 @@ add_executable(test_celeritas
   testOperation/testScalesum.cpp
   testOperation/testSwiglu.cpp
   testOperation/testSoftmap.cpp
+  testModel/testTokenizer.cpp
+  testModel/testLlama2.cpp
 )
 
 target_link_libraries(test_celeritas
@@ -22,6 +24,28 @@ target_link_libraries(test_celeritas
     GTest::gtest
     ${CELERITAS_GLOG_TARGET}
 )
+
+if (EXISTS "/usr/local/cuda/lib64")
+  target_link_directories(test_celeritas
+    PRIVATE
+      /usr/local/cuda/lib64
+  )
+endif()
+
+if (EXISTS "/usr/local/cuda/lib64/libcudadevrt.a" AND EXISTS "/usr/local/cuda/lib64/libcudart_static.a")
+  target_link_libraries(test_celeritas
+    PRIVATE
+      /usr/local/cuda/lib64/libcudadevrt.a
+      /usr/local/cuda/lib64/libcudart_static.a
+  )
+endif()
+
+if (EXISTS "/usr/local/cuda/lib64")
+  target_link_options(test_celeritas
+    PRIVATE
+      -L/usr/local/cuda/lib64
+  )
+endif()
 
 target_compile_options(test_celeritas
   PRIVATE
