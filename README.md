@@ -47,14 +47,21 @@ test/
 - GTest
 - glog
 
-## Build And Test
+## Build, Test, And Run Demo
 
 From repository root:
 
 ```bash
-cmake -S test -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j
-ctest --test-dir build --output-on-failure
+cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/debug -j
+./build/debug/test/test_celeritas
+```
+
+To build and run the text generation demo:
+
+```bash
+cmake --build build/debug --target celeritas_story -j
+./build/debug/demo/celeritas_story
 ```
 
 ## Current Status
