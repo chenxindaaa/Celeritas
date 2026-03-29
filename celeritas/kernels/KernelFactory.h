@@ -16,6 +16,9 @@ public:
     static SoftmaxDispatcher getSoftmaxKernel();
     static ScalesumDispatcher getScalesumKernel();
     static MhaDispatcher getMhaKernel();
+    static ArgmaxDispatcher getArgmaxKernel();
+    static RopeDispatcher getRopeKernel();
+    static RopeCacheDispatcher getRopeCacheKernel();
 };
 
 }  // namespace eCEL

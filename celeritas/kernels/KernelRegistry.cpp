@@ -8,12 +8,17 @@
 #include "cpu/swiglu_kernel.h"
 #include "cpu/scale_sum_kernel.h"
 #include "cpu/mha_kernel.h"
+#include "cpu/rope_kernel.h"
+#include "cpu/rope_cache_kernel.h"
 #include "gpu/add.cuh"
+#include "gpu/argmax_kernel.cuh"
 #include "gpu/emb_kernel.cuh"
 #include "gpu/matmul_kernel.cuh"
 #include "gpu/rmsnorm_kernel.cuh"
 #include "gpu/swiglu_kernel.cuh"
 #include "gpu/mha_kernel.cuh"
+#include "gpu/rope_kernel.cuh"
+#include "gpu/rope_cache_kernel.cuh"
 
 namespace eCEL {
 
@@ -101,6 +106,30 @@ void KernelRegistry::initRegistryTable() {
                                        eUTIL::DeviceType::kCuda,
                                        makeTensorSignature<float, float, float, float, float>(),
                                        mhaKernelCu<float>);                                                                                               
+
+    // Argmax
+    registerKernel<ArgmaxKernelFn<float, std::size_t>>(OpType::kArgmax,
+                                          eUTIL::DeviceType::kCuda,
+                                          makeTensorSignature<float, std::size_t>(),
+                                          argmaxKernelCu);
+
+    // Rope
+    registerKernel<RopeKernelFn<float>>(OpType::kRope,
+                                        eUTIL::DeviceType::kCpu,
+                                        makeTensorSignature<float, float, float, float>(),
+                                        ropeKernelCpu<float>);
+    registerKernel<RopeKernelFn<float>>(OpType::kRope,
+                                        eUTIL::DeviceType::kCuda,
+                                        makeTensorSignature<float, float, float, float>(),
+                                        ropeKernelCu<float>);
+    registerKernel<RopeCacheKernelFn<float>>(OpType::kRopeCache,
+                                             eUTIL::DeviceType::kCpu,
+                                             makeTensorSignature<float, float>(),
+                                             ropeCacheKernelCpu<float>);
+    registerKernel<RopeCacheKernelFn<float>>(OpType::kRopeCache,
+                                             eUTIL::DeviceType::kCuda,
+                                             makeTensorSignature<float, float>(),
+                                             ropeCacheKernelCu<float>);
 }
 
 }  // namespace eCEL

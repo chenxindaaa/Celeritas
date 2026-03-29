@@ -1,15 +1,16 @@
-#include "sampler.h"
-#include "sampler.h"
+#pragma once
 
-class CudaConfig;
+#include "sampler.h"
 
 namespace eCEL {
 
 class ArgmaxSampler : public Sampler {
- public:
-  explicit ArgmaxSampler(eUTIL::DeviceType device) : Sampler(device) {}
+public:
+    explicit ArgmaxSampler(eUTIL::DeviceType device)
+        : Sampler(device) {}
 
-  size_t sample(const float* logits, size_t size, CudaConfig* config) override;
+    std::size_t sample(const std::vector<float>& logits,
+                       eUTIL::CudaConfig* config = nullptr) const override;
 };
 
 }  // namespace eCEL

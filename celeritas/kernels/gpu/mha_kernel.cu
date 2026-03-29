@@ -134,10 +134,16 @@ void mhaKernelCu(int32_t pos, int32_t head_num,
     float* key_cache = const_cast<float*>(key_cache_tensor.data());
     float* value_cache = const_cast<float*>(value_cache_tensor.data());
 
-    cudaStream_t stream = config->stream;
-    multi_head_attention_kernel<<<head_num, thread_num, head_size * sizeof(float), stream>>>(
+    if (config && config->stream) {
+        multi_head_attention_kernel<<<head_num, thread_num, head_size * sizeof(float), config->stream>>>(
         pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
         head_size, layer_offset);
+    }
+    else {
+        multi_head_attention_kernel<<<head_num, thread_num, head_size * sizeof(float)>>>(
+        pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
+        head_size, layer_offset);
+    }    
 }
 
 }  // namespace eCEL

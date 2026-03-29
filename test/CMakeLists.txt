@@ -6,7 +6,7 @@ add_executable(test_celeritas
   testUtil/testSave.cpp
   testOperation/testAdd.cpp
   testOperation/testEmb.cpp
-  testOperation/testLayer.cpp
+  testModel/testLayer.cpp
   testOperation/testMatmul.cpp
   testOperation/testMha.cpp
   testOperation/testRms.cpp

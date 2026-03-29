@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include <cuda_fp16.h>
@@ -18,6 +19,7 @@ enum class DeviceType {
 enum class DType {
     kUnknown,
     kInt8,
+    kUInt64,
     kFloat16,
     kFloat32,
     kNumDTypes,
@@ -31,6 +33,11 @@ struct DTypeTrait {
 template <>
 struct DTypeTrait<int8_t> {
     static constexpr DType kValue = DType::kInt8;
+};
+
+template <>
+struct DTypeTrait<std::size_t> {
+    static constexpr DType kValue = DType::kUInt64;
 };
 
 template <>

@@ -11,7 +11,7 @@
 
 namespace eCEL {
 
-using TokenId = int32_t;
+using TokenId = std::size_t;
 
 struct EncodeOptions {
     bool m_addBos = false;

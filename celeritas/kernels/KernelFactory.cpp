@@ -36,4 +36,16 @@ MhaDispatcher KernelFactory::getMhaKernel() {
     return MhaDispatcher(OpType::kMha);
 }
 
+ArgmaxDispatcher KernelFactory::getArgmaxKernel() {
+    return ArgmaxDispatcher(OpType::kArgmax);
+}
+
+RopeDispatcher KernelFactory::getRopeKernel() {
+    return RopeDispatcher(OpType::kRope);
+}
+
+RopeCacheDispatcher KernelFactory::getRopeCacheKernel() {
+    return RopeCacheDispatcher(OpType::kRopeCache);
+}
+
 }  // namespace eCEL

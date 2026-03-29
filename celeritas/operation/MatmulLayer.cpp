@@ -4,14 +4,16 @@ namespace eCEL {
 
 template <typename Tact, typename Tweight>
 void MatmulLayer<Tact, Tweight>::forward(const ForwardContext& ctx,
-                                         const Tensor& input,
-                                         Tensor& output) {
+                                         TensorListView<Tact> inputs,
+                                         eUTIL::Tensor<Tact>& output) {
+    Layer<Tact>::requireInputCount(inputs, 1, "MatmulLayer");
+
     auto kernel = KernelFactory::getMatmulKernel();
-    kernel(input,
+    kernel(inputs[0],
            m_params.weight.view(),
            m_params.scaler.view(),
            output,
-           m_params.group_size,
+           m_groupSize,
            nullptr);
 
     (void)ctx;

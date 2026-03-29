@@ -4,10 +4,12 @@ namespace eCEL {
 
 template <typename T>
 void SwigluLayer<T>::forward(const ForwardContext& ctx,
-                             const Tensor& input,
-                             Tensor& output) {
+                             TensorListView<T> inputs,
+                             eUTIL::Tensor<T>& output) {
+    Layer<T>::requireInputCount(inputs, 2, "SwigluLayer");
+
     auto kernel = KernelFactory::getSwigluKernel();
-    kernel(input, m_params.value.view(), output, nullptr);
+    kernel(inputs[0], inputs[1], output, nullptr);
 
     (void)ctx;
 }

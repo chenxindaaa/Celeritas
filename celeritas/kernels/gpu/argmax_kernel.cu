@@ -1,88 +1,112 @@
-#include "../kernels_interface.h"
 #include "argmax_kernel.cuh"
-#include "core/Tensor.h"
-namespace kernel {
-__forceinline__ __device__ void warp_reduce_argmax(float& val, size_t& ptr) {
-  float tmp_val;
-  size_t tmp_ptr;
-  unsigned int mask = __ballot_sync(0xFFFFFFFF, true);
-  for (unsigned int k = (warpSize >> 1); k > 0; k >>= 1) {
-    tmp_val = __shfl_down_sync(mask, val, k, warpSize);
-    tmp_ptr = __shfl_down_sync(mask, ptr, k, warpSize);
-    if (ptr == SIZE_MAX || tmp_ptr == SIZE_MAX) continue;
-    if (tmp_val > val) {
-      val = tmp_val;
-      ptr = tmp_ptr;
-    } else if (tmp_val == val && tmp_ptr < ptr) {
-      ptr = tmp_ptr;
+
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+
+#include <cuda_runtime_api.h>
+
+namespace eCEL {
+namespace {
+
+constexpr std::size_t kInvalidArgmaxIndex = static_cast<std::size_t>(-1);
+
+__forceinline__ __device__ void warpReduceArgmax(float& value, std::size_t& index) {
+    const unsigned int mask = __ballot_sync(0xFFFFFFFF, true);
+    for (unsigned int offset = (warpSize >> 1); offset > 0; offset >>= 1) {
+        const float otherValue = __shfl_down_sync(mask, value, offset, warpSize);
+        const std::size_t otherIndex = __shfl_down_sync(mask, index, offset, warpSize);
+        if (index == kInvalidArgmaxIndex ||
+            otherIndex == kInvalidArgmaxIndex) {
+            continue;
+        }
+        if (otherValue > value || (otherValue == value && otherIndex < index)) {
+            value = otherValue;
+            index = otherIndex;
+        }
     }
-  }
 }
 
-__forceinline__ __device__ void block_reduce_argmax(float& val, size_t& ptr, float* shared_value,
-                                                    size_t* shared_ptr) {
-  int lane_id = threadIdx.x % warpSize;
-  int warp_id = threadIdx.x / warpSize;
+__forceinline__ __device__ void blockReduceArgmax(float& value,
+                                                  std::size_t& index,
+                                                  float* sharedValues,
+                                                  std::size_t* sharedIndices) {
+    const int laneId = threadIdx.x % warpSize;
+    const int warpId = threadIdx.x / warpSize;
 
-  warp_reduce_argmax(val, ptr);
+    warpReduceArgmax(value, index);
 
-  __syncthreads();
-  if (lane_id == 0) {
-    shared_value[warp_id] = val;
-    shared_ptr[warp_id] = ptr;
-  }
-
-  __syncthreads();
-  if (threadIdx.x < blockDim.x / warpSize) {
-    val = shared_value[lane_id];
-    ptr = shared_ptr[lane_id];
-  } else {
-    val = 0;
-    ptr = SIZE_MAX;
-  }
-
-  if (warp_id == 0) {
-    warp_reduce_argmax(val, ptr);
-  }
-}
-
-__global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* output_idx) {
-  __shared__ size_t shared_max_ptr[32];
-  __shared__ float shared_max_value[32];
-  uint32_t tid = threadIdx.x;
-  if (tid >= size) {
-    return;
-  }
-
-  size_t max_index = threadIdx.x;
-  float max_value = input_ptr[max_index];
-  for (size_t i = tid; i < size; i += blockDim.x) {
-    if (input_ptr[i] > max_value) {
-      max_index = i;
-      max_value = input_ptr[i];
+    __syncthreads();
+    if (laneId == 0) {
+        sharedValues[warpId] = value;
+        sharedIndices[warpId] = index;
     }
-  }
 
-  block_reduce_argmax(max_value, max_index, shared_max_value, shared_max_ptr);
-  __syncthreads();
-  if (threadIdx.x == 0) {
-    *output_idx = max_index;
-  }
+    __syncthreads();
+    if (threadIdx.x < blockDim.x / warpSize) {
+        value = sharedValues[laneId];
+        index = sharedIndices[laneId];
+    } else {
+        value = 0.0f;
+        index = kInvalidArgmaxIndex;
+    }
+
+    if (warpId == 0) {
+        warpReduceArgmax(value, index);
+    }
 }
 
-size_t argmax_kernel_cu(const float* input_ptr, size_t size, void* stream) {
-  std::shared_ptr<base::DeviceAllocator> alloc_cu =
-      base::CUDADeviceAllocatorFactory::get_instance();
-  size_t* index = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t)));
-  size_t output_index = 0;
-  if (!stream) {
-    argmax_kernel_fp32<<<1, 512>>>(input_ptr, size, index);
-    cudaMemcpy(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost);
-  } else {
-    cudaStream_t stream_ = static_cast<cudaStream_t>(stream);
-    argmax_kernel_fp32<<<1, 512, 0, stream_>>>(input_ptr, size, index);
-    cudaMemcpyAsync(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost, stream_);
-  }
-  return output_index;
+__global__ void argmaxKernelFp32(const float* inputPtr,
+                                 std::size_t size,
+                                 std::size_t* outputIndex) {
+    __shared__ std::size_t sharedMaxIndices[32];
+    __shared__ float sharedMaxValues[32];
+
+    const std::uint32_t tid = threadIdx.x;
+    if (tid >= size) {
+        return;
+    }
+
+    std::size_t maxIndex = tid;
+    float maxValue = inputPtr[maxIndex];
+    for (std::size_t i = tid; i < size; i += blockDim.x) {
+        if (inputPtr[i] > maxValue) {
+            maxIndex = i;
+            maxValue = inputPtr[i];
+        }
+    }
+
+    blockReduceArgmax(maxValue, maxIndex, sharedMaxValues, sharedMaxIndices);
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        *outputIndex = maxIndex;
+    }
 }
-}  // namespace kernel
+
+}  // namespace
+
+void argmaxKernelCu(const eUTIL::Tensor<float>& input,
+                    eUTIL::Tensor<std::size_t>& output,
+                    void* stream) {
+    if (input.device() != eUTIL::DeviceType::kCuda) {
+        throw std::invalid_argument("argmaxKernelCu requires CUDA input");
+    }
+    if (input.empty()) {
+        throw std::invalid_argument("argmaxKernelCu requires non-empty input");
+    }
+    if (output.device() != eUTIL::DeviceType::kCuda) {
+        throw std::invalid_argument("argmaxKernelCu requires CUDA output");
+    }
+    if (output.size() != 1) {
+        throw std::invalid_argument("argmaxKernelCu requires output tensor size 1");
+    }
+    if (stream == nullptr) {
+        argmaxKernelFp32<<<1, 512>>>(input.data(), input.size(), output.data());
+    } else {
+        cudaStream_t cudaStream = static_cast<cudaStream_t>(stream);
+        argmaxKernelFp32<<<1, 512, 0, cudaStream>>>(input.data(), input.size(), output.data());
+    }
+}
+
+}  // namespace eCEL

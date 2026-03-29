@@ -1,5 +1,13 @@
 #pragma once
 
+#include <cstddef>
+
+#include "udm/core/Tensor.h"
+
 namespace eCEL {
-size_t argmax_kernel_cu(const float* input_ptr, size_t size, void* stream);
+
+void argmaxKernelCu(const eUTIL::Tensor<float>& input,
+                    eUTIL::Tensor<std::size_t>& output,
+                    void* stream = nullptr);
+
 }

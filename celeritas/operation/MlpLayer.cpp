@@ -5,42 +5,41 @@
 namespace eCEL {
 
 template <typename Tact, typename Tweight>
-Tensor MlpLayer<Tact, Tweight>::makeMatmulOutputTensor(const Tensor& input,
-                                                       const eUTIL::Tensor<Tweight>& weight,
-                                                       eUTIL::DeviceType device) {
+eUTIL::Tensor<Tact> MlpLayer<Tact, Tweight>::makeMatmulOutputTensor(const eUTIL::Tensor<Tact>& input,
+                                                                    const eUTIL::Tensor<Tweight>& weight,
+                                                                    eUTIL::DeviceType device) {
     if (weight.dimSize() != 2) {
         throw std::invalid_argument("MlpLayer matmul weight must be 2D");
     }
 
-    const std::size_t out_dim = static_cast<std::size_t>(weight.getDim(0));
+    const std::size_t outDim = static_cast<std::size_t>(weight.getDim(0));
     if (input.dimSize() == 1) {
-        return Tensor(device, out_dim);
+        return eUTIL::Tensor<Tact>(device, outDim);
     }
     if (input.dimSize() == 2) {
-        return Tensor(device, out_dim, static_cast<std::size_t>(input.getDim(1)));
+        return eUTIL::Tensor<Tact>(device, outDim, static_cast<std::size_t>(input.getDim(1)));
     }
     throw std::invalid_argument("MlpLayer only supports 1D or 2D input tensors");
 }
 
 template <typename Tact, typename Tweight>
 void MlpLayer<Tact, Tweight>::forward(const ForwardContext& ctx,
-                                      const Tensor& input,
-                                      Tensor& output) {
-    Tensor gate_output = makeMatmulOutputTensor(input, m_params.gate_proj.weight.view(), m_device);
-    Tensor up_output = makeMatmulOutputTensor(input, m_params.up_proj.weight.view(), m_device);
+                                      TensorListView<Tact> inputs,
+                                      eUTIL::Tensor<Tact>& output) {
+    Layer<Tact>::requireInputCount(inputs, 1, "MlpLayer");
 
-    m_gateLayer.forward(ctx, input, gate_output);
-    m_upLayer.forward(ctx, input, up_output);
+    const eUTIL::Tensor<Tact>& input = inputs[0];
+    eUTIL::Tensor<Tact> gateOutput = makeMatmulOutputTensor(input, m_params.gate_proj.weight.view(), this->m_device);
+    eUTIL::Tensor<Tact> upOutput = makeMatmulOutputTensor(input, m_params.up_proj.weight.view(), this->m_device);
 
-    Tensor swiglu_output = makeMatmulOutputTensor(input, m_params.gate_proj.weight.view(), m_device);
-    m_swigluLayer.params().value = Parameter<float>(up_output, "up_proj_output");
-    m_swigluLayer.forward(ctx, gate_output, swiglu_output);
+    m_gateLayer.forward(ctx, input, gateOutput);
+    m_upLayer.forward(ctx, input, upOutput);
 
-    Tensor down_output = makeMatmulOutputTensor(swiglu_output, m_params.down_proj.weight.view(), m_device);
-    m_downLayer.forward(ctx, swiglu_output, down_output);
+    eUTIL::Tensor<Tact> swigluOutput = makeMatmulOutputTensor(input, m_params.gate_proj.weight.view(), this->m_device);
+    const eUTIL::Tensor<Tact>* swigluInputs[] = {&gateOutput, &upOutput};
+    m_swigluLayer.forward(ctx, TensorListView<Tact>(swigluInputs, 2), swigluOutput);
 
-    m_addLayer.params().value = Parameter<float>(input, "residual");
-    m_addLayer.forward(ctx, down_output, output);
+    m_downLayer.forward(ctx, swigluOutput, output);
 }
 
 template class MlpLayer<float, float>;

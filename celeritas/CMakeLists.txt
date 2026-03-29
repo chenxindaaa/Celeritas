@@ -10,9 +10,14 @@ find_library(SENTENCEPIECE_LIBRARY
 )
 
 add_library(celeritas STATIC
+  loader/Loader.cpp
   models/Model.cpp
   models/Llama2.cpp
-  engine/LLMEgine.cpp
+  engine/LLMEngine.cpp
+  kvCache/kvCacheMgr.cpp
+  ropeCache/RopeCache.cpp
+  sampler/sampler.cpp
+  sampler/argmax_sampler.cpp
   tokenizer/Tokenizer.cpp
   tokenizer/BpeTokenizer.cpp
   tokenizer/SentencePieceTokenizer.cpp
@@ -21,17 +26,23 @@ add_library(celeritas STATIC
   kernels/KernelFactory.cpp
   operation/Layer.cpp
   operation/AddLayer.cpp
+  operation/DecoderLayer.cpp
   operation/EmbLayer.cpp
   operation/MatmulLayer.cpp
+  operation/MhaLayer.cpp
   operation/MlpLayer.cpp
   operation/RmsnormLayer.cpp
+  operation/SelfAttentionLayer.cpp
   operation/SwigluLayer.cpp
   kernels/gpu/add.cu
+  kernels/gpu/argmax_kernel.cu
   kernels/gpu/emb_kernel.cu
   kernels/gpu/matmul_kernel.cu
   kernels/gpu/rmsnorm_kernel.cu
   kernels/gpu/swiglu_kernel.cu
   kernels/gpu/mha_kernel.cu
+  kernels/gpu/rope_kernel.cu
+  kernels/gpu/rope_cache_kernel.cu
 )
 
 target_include_directories(celeritas

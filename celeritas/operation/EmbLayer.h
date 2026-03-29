@@ -1,5 +1,7 @@
 #pragma once
 
+// Defines the embedding layer that maps token ids to embedding vectors.
+
 #include <cstdint>
 #include <type_traits>
 #include <utility>
@@ -9,45 +11,60 @@
 
 namespace eCEL {
 
-template <typename Tweight>
+template <typename T>
 struct EmbParams {
-    Parameter<Tweight> weight;
-    int32_t vocab_size = 0;
+    Parameter<T> weight;
 
-    EmbParams(Parameter<Tweight> weight_param, int32_t vocab_size_param)
-        : weight(std::move(weight_param)),
-          vocab_size(vocab_size_param) {}
+    EmbParams() = default;
+
+    explicit EmbParams(Parameter<T> weight_param)
+        : weight(std::move(weight_param)) {}
 };
 
-template <typename Tact, typename Tweight = Tact>
-class EmbLayer : public Layer {
+template <typename T>
+class EmbLayer : public Layer<T> {
 public:
-    static_assert(std::is_same_v<Tact, float>,
-                  "EmbLayer currently supports float activation tensors only");
-    static_assert(std::is_same_v<Tweight, float>,
-                  "EmbLayer currently supports float weight tensors only");
+    using ParamType = EmbParams<T>;
+    using Layer<T>::forward;
 
-    using ParamType = EmbParams<Tweight>;
+    explicit EmbLayer(int32_t vocab_size,
+                      eUTIL::DeviceType device = eUTIL::DeviceType::kCpu)
+        : Layer<T>(device),
+          m_vocabSize(vocab_size),
+          m_params() {}
 
     explicit EmbLayer(eUTIL::DeviceType device,
-                      ParamType params)
-        : Layer(device),
+                      ParamType params,
+                      int32_t vocab_size)
+        : Layer<T>(device),
+          m_vocabSize(vocab_size),
           m_params(std::move(params)) {}
 
     explicit EmbLayer(eUTIL::DeviceType device,
-                      Parameter<Tweight> weight,
+                      Parameter<T> weight,
                       int32_t vocab_size)
-        : Layer(device),
-          m_params(std::move(weight), vocab_size) {}
+        : Layer<T>(device),
+          m_vocabSize(vocab_size),
+          m_params(std::move(weight)) {}
 
     void forward(const ForwardContext& ctx,
-                 const Tensor& input,
-                 Tensor& output) override;
+                 TensorListView<T> inputs,
+                 eUTIL::Tensor<T>& output) override;
 
+    void to(eUTIL::DeviceType device) override {
+        this->m_device = device;
+        m_params.weight.to(device);
+    }
+
+    void setParams(ParamType params) { m_params = std::move(params); }
+    void setWeight(Parameter<T> weight) { m_params.weight = std::move(weight); }
+    void setVocabSize(int32_t vocab_size) { m_vocabSize = vocab_size; }
+    int32_t vocabSize() const { return m_vocabSize; }
     const ParamType& params() const { return m_params; }
     ParamType& params() { return m_params; }
 
 private:
+    int32_t m_vocabSize;
     ParamType m_params;
 };
 

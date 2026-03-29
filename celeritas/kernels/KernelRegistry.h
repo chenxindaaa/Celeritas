@@ -25,6 +25,9 @@ enum class OpType {
     kSoftmax,
     kScalesum,
     kMha,
+    kArgmax,
+    kRope,
+    kRopeCache,
     kNumOpTypes,
 };
 
@@ -46,6 +49,12 @@ inline std::string opTypeName(OpType opType) {
             return "scalesum";
         case OpType::kMha:
             return "mha";
+        case OpType::kArgmax:
+            return "argmax";
+        case OpType::kRope:
+            return "rope";
+        case OpType::kRopeCache:
+            return "rope_cache";
         case OpType::kUnknown:
         case OpType::kNumOpTypes:
         default:
@@ -108,10 +117,36 @@ using MhaKernelFn = void (*)(int32_t pos, int32_t head_num,
                              eUTIL::Tensor<T>& mha_out,
                              const eUTIL::CudaConfig* config);
 
+template <typename T>
+using RopeKernelFn = void (*)(int32_t pos,
+                              int32_t dim,
+                              int32_t kv_dim,
+                              int32_t head_size,
+                              eUTIL::Tensor<T>& input_q,
+                              eUTIL::Tensor<T>& input_k,
+                              const eUTIL::Tensor<T>& sin_cache,
+                              const eUTIL::Tensor<T>& cos_cache,
+                              void* stream);
+
+template <typename T>
+using RopeCacheKernelFn = void (*)(int32_t head_size,
+                                   int32_t max_seq_len,
+                                   float theta,
+                                   eUTIL::Tensor<T>& sin_cache,
+                                   eUTIL::Tensor<T>& cos_cache,
+                                   void* stream);
+
+template <typename Tin, typename Tout = std::size_t>
+using ArgmaxKernelFn = void (*)(const eUTIL::Tensor<Tin>& input,
+                                eUTIL::Tensor<Tout>& output,
+                                void* stream);
+
 inline std::string dtypeName(eUTIL::DType dtype) {
     switch (dtype) {
         case eUTIL::DType::kInt8:
             return "int8";
+        case eUTIL::DType::kUInt64:
+            return "uint64";
         case eUTIL::DType::kFloat16:
             return "float16";
         case eUTIL::DType::kFloat32:

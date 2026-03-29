@@ -42,6 +42,10 @@ std::size_t sizeClassFor(std::size_t bytes) {
     return roundUp(bytes, 4 * 1024);
 }
 
+bool isCudaShutdownError(cudaError_t err) {
+    return err == cudaErrorCudartUnloading;
+}
+
 }  // namespace
 
 void MemoryPool::clearCachedBlocks() {
@@ -187,7 +191,9 @@ void* CudaMemoryPool::allocateRaw(std::size_t bytes) {
 void CudaMemoryPool::deallocateRaw(void* ptr) {
     if (ptr != nullptr) {
         const cudaError_t err = cudaFree(ptr);
-        CUDA_CHECK(err);
+        if (err != cudaSuccess && !isCudaShutdownError(err)) {
+            CUDA_CHECK(err);
+        }
     }
 }
 

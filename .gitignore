@@ -4,3 +4,6 @@ docs/
 tmp/
 /models/
 **/__pycache__/
+AGENTS.md
+ARCHITECTURE.md
+CONTEXT.md

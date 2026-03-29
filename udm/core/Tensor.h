@@ -20,6 +20,8 @@ public:
     static_assert(DTypeTrait<T>::kValue != DType::kUnknown,
                     "Unsupported tensor dtype");
 
+    // Creates an empty tensor with unknown device and dtype.
+    Tensor() noexcept;
     explicit Tensor(DeviceType device);
     Tensor(DeviceType device, std::initializer_list<std::size_t> dims);
     Tensor(DeviceType device,
@@ -80,7 +82,6 @@ private:
         bool isExternal;
     };
 
-    Tensor() noexcept;
     void acquireFrom(const Tensor& other);
     void releaseOwnership() noexcept;
     void release() noexcept;
@@ -95,6 +96,7 @@ private:
 };
 
 extern template class Tensor<int8_t>;
+extern template class Tensor<std::size_t>;
 extern template class Tensor<float16>;
 extern template class Tensor<float>;
 

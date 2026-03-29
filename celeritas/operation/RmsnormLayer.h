@@ -1,5 +1,7 @@
 #pragma once
 
+// Defines the RMSNorm layer for activation normalization.
+
 #include <type_traits>
 #include <utility>
 
@@ -8,37 +10,47 @@
 
 namespace eCEL {
 
-template <typename Tweight>
+template <typename T>
 struct RmsnormParams {
-    Parameter<Tweight> weight;
+    Parameter<T> weight;
 
-    explicit RmsnormParams(Parameter<Tweight> weight_param)
+    RmsnormParams() = default;
+
+    explicit RmsnormParams(Parameter<T> weight_param)
         : weight(std::move(weight_param)) {}
 };
 
-template <typename Tact, typename Tweight = Tact>
-class RmsnormLayer : public Layer {
+template <typename T>
+class RmsnormLayer : public Layer<T> {
 public:
-    static_assert(std::is_same_v<Tact, float>,
-                  "RmsnormLayer currently supports float activation tensors only");
-    static_assert(std::is_same_v<Tweight, float>,
-                  "RmsnormLayer currently supports float weight tensors only");
-
-    using ParamType = RmsnormParams<Tweight>;
+    using ParamType = RmsnormParams<T>;
+    using Layer<T>::forward;
 
     explicit RmsnormLayer(eUTIL::DeviceType device,
                           ParamType params)
-        : Layer(device),
+        : Layer<T>(device),
           m_params(std::move(params)) {}
 
+    explicit RmsnormLayer(eUTIL::DeviceType device = eUTIL::DeviceType::kCpu)
+        : Layer<T>(device),
+          m_params() {}
+
     explicit RmsnormLayer(eUTIL::DeviceType device,
-                          Parameter<Tweight> weight)
-        : Layer(device),
+                          Parameter<T> weight)
+        : Layer<T>(device),
           m_params(std::move(weight)) {}
 
     void forward(const ForwardContext& ctx,
-                 const Tensor& input,
-                 Tensor& output) override;
+                 TensorListView<T> inputs,
+                 eUTIL::Tensor<T>& output) override;
+
+    void to(eUTIL::DeviceType device) override {
+        this->m_device = device;
+        m_params.weight.to(device);
+    }
+
+    void setParams(ParamType params) { m_params = std::move(params); }
+    void setWeight(Parameter<T> weight) { m_params.weight = std::move(weight); }
 
     const ParamType& params() const { return m_params; }
     ParamType& params() { return m_params; }

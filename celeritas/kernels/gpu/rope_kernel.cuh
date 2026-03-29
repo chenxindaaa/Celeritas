@@ -1,14 +1,32 @@
-#ifndef ROPE_KERNEL_CU_CUH
-#define ROPE_KERNEL_CU_CUH
-#include "core/Tensor.h"
-namespace kernel {
-void rope_kernel_cu(int32_t dim, int32_t kv_dim, int32_t head_size, const tensor::Tensor& input_q,
-                    const tensor::Tensor& input_k, const tensor::Tensor& input_pos,
-                    const tensor::Tensor& sin_cache, const tensor::Tensor& cos_cache, void* stream);
+#pragma once
 
-void sin_cos_cache_calc_cu(int head_size, int max_seq_len, const tensor::Tensor& sin_cache,
-                           const tensor::Tensor& cos_cache, cudaStream_t stream);
+#include "udm/core/Tensor.h"
 
-}  // namespace kernel
-#endif  // ROPE_KERNEL_CU_CUH
+namespace eCEL {
+
+template <typename T>
+void ropeKernelCu(int32_t pos,
+                  int32_t dim,
+                  int32_t kvDim,
+                  int32_t headSize,
+                  eUTIL::Tensor<T>& inputQ,
+                  eUTIL::Tensor<T>& inputK,
+                  const eUTIL::Tensor<T>& sinCache,
+                  const eUTIL::Tensor<T>& cosCache,
+                  void* stream = nullptr) {
+    return;
+}
+
+template <>
+void ropeKernelCu(int32_t pos,
+                  int32_t dim,
+                  int32_t kvDim,
+                  int32_t headSize,
+                  eUTIL::Tensor<float>& inputQ,
+                  eUTIL::Tensor<float>& inputK,
+                  const eUTIL::Tensor<float>& sinCache,
+                  const eUTIL::Tensor<float>& cosCache,
+                  void* stream);
+
+}  // namespace eCEL
 

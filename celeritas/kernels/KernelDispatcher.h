@@ -183,4 +183,52 @@ public:
     }
 };
 
+class ArgmaxDispatcher final : public Dispatcher {
+public:
+    ArgmaxDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename Tin, typename Tout = std::size_t>
+    void operator()(const eUTIL::Tensor<Tin>& input,
+                    eUTIL::Tensor<Tout>& output,
+                    void* stream = nullptr) const {
+        check(input, output);
+        auto kernel = lookup<ArgmaxKernelFn<Tin, Tout>>();
+        kernel(input, output, stream);
+    }
+};
+
+class RopeDispatcher final : public Dispatcher {
+public:
+    RopeDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(int32_t pos,
+                    int32_t dim,
+                    int32_t kv_dim,
+                    int32_t head_size,
+                    eUTIL::Tensor<T>& input_q,
+                    eUTIL::Tensor<T>& input_k,
+                    const eUTIL::Tensor<T>& sin_cache,
+                    const eUTIL::Tensor<T>& cos_cache,
+                    void* stream = nullptr) const {
+        check(input_q, input_k, sin_cache, cos_cache);
+        auto kernel = lookup<RopeKernelFn<T>>();
+        kernel(pos, dim, kv_dim, head_size, input_q, input_k, sin_cache, cos_cache, stream);
+    }
+};
+
+class RopeCacheDispatcher final : public Dispatcher {
+public:
+    RopeCacheDispatcher(OpType opType) : Dispatcher(opType) {}
+    template <typename T>
+    void operator()(int32_t head_size,
+                    int32_t max_seq_len,
+                    float theta,
+                    eUTIL::Tensor<T>& sin_cache,
+                    eUTIL::Tensor<T>& cos_cache,
+                    void* stream = nullptr) const {
+        check(sin_cache, cos_cache);
+        auto kernel = lookup<RopeCacheKernelFn<T>>();
+        kernel(head_size, max_seq_len, theta, sin_cache, cos_cache, stream);
+    }
+};
+
 }  // namespace eCEL

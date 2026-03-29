@@ -10,7 +10,7 @@ from typing import List, Optional
 THIS_DIR = Path(__file__).resolve().parent
 ROOT_DIR = THIS_DIR.parent.parent
 SERIALIZATION_DIR = ROOT_DIR / "test" / "testSerialization"
-DEFAULT_CHECKPOINT = ROOT_DIR / "models" / "stories15M.pt"
+DEFAULT_CHECKPOINT = ROOT_DIR / "models" / "stories110M.pt"
 DEFAULT_TOKENIZER = ROOT_DIR / "models" / "tokenizer.model"
 DEFAULT_TOKENIZER_GOLDEN = THIS_DIR / "sentencepiece_golden.txt"
 DEFAULT_EMBEDDING_GOLDEN = THIS_DIR / "embedding_golden.txt"
@@ -151,12 +151,8 @@ def main() -> None:
                         help="Prompt text to generate from")
     parser.add_argument("--token-ids", type=str, default=None,
                         help="Comma-separated token ids, used when tokenizer is unavailable")
-    parser.add_argument("--max-new-tokens", type=int, default=64,
+    parser.add_argument("--max-new-tokens", type=int, default=128,
                         help="Number of tokens to generate")
-    parser.add_argument("--temperature", type=float, default=0.8,
-                        help="Sampling temperature; use 0 for greedy decoding")
-    parser.add_argument("--top-k", type=int, default=200,
-                        help="Top-k sampling cutoff")
     parser.add_argument("--device", type=str, default=None,
                         help="Torch device, e.g. cpu or cuda")
     parser.add_argument("--dump-golden", dest="dump_golden", action="store_true",
@@ -224,8 +220,8 @@ def main() -> None:
         generated = model.generate(
             input_ids,
             max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-            top_k=args.top_k,
+            temperature=0.0,
+            top_k=None,
         )
 
     output_token_ids = generated[0].tolist()

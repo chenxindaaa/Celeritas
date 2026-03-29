@@ -34,6 +34,8 @@ const char* dtypeName(DType dtype) {
     switch (dtype) {
         case DType::kInt8:
             return "int8";
+        case DType::kUInt64:
+            return "uint64";
         case DType::kFloat16:
             return "float16";
         case DType::kFloat32:
@@ -53,6 +55,11 @@ double previewValue(T value) {
 template <>
 double previewValue<int8_t>(int8_t value) {
     return static_cast<int>(value);
+}
+
+template <>
+double previewValue<std::size_t>(std::size_t value) {
+    return static_cast<double>(value);
 }
 
 template <>
@@ -459,9 +466,11 @@ std::ostream& operator<<(std::ostream& os, const Tensor<T>& tensor) {
 }
 
 template class Tensor<int8_t>;
+template class Tensor<std::size_t>;
 template class Tensor<float16>;
 template class Tensor<float>;
 template std::ostream& operator<<(std::ostream& os, const Tensor<int8_t>& tensor);
+template std::ostream& operator<<(std::ostream& os, const Tensor<std::size_t>& tensor);
 template std::ostream& operator<<(std::ostream& os, const Tensor<float16>& tensor);
 template std::ostream& operator<<(std::ostream& os, const Tensor<float>& tensor);
 
